@@ -358,7 +358,7 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
         {/* Header Action Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {order.isInvoiced ? (
-            <Link href={`/retailer/invoices/${order.id}`}>
+            <Link href={`/retailer/invoices/${order.id}?from=distributor`}>
               <Button variant="outline" size="sm" className="font-bold text-xs h-9 flex items-center gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100">
                 <FileText className="w-3.5 h-3.5 text-emerald-700" />
                 <span>View Tax Invoice</span>
@@ -539,7 +539,7 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
 
             <div className="flex items-center gap-2">
               {order.isInvoiced && (
-                <Link href={`/retailer/invoices/${order.id}`}>
+                <Link href={`/retailer/invoices/${order.id}?from=distributor`}>
                   <Button
                     variant="outline"
                     size="sm"

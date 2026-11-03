@@ -22,6 +22,122 @@ import {
 } from "./mock-data";
 
 // In-memory persistent state holder across server requests
+export type InvoiceTemplateType = "IRD_STANDARD" | "THERMAL_POS" | "FMCG_MODERN" | "COMPACT_B2B";
+
+export interface DistributorSystemSettings {
+  distributorId: string;
+
+  // --- 1. INVOICE PRINT TEMPLATE & DESIGN ---
+  invoiceTemplate: InvoiceTemplateType;
+  invoiceTitle: string; // e.g. "कर बीजक (TAX INVOICE)"
+  invoicePrefix: string; // e.g. "INV-2026-BAG-"
+  startingSequence: number; // e.g. 1001
+  fiscalYear: string; // e.g. "२०८१/०८२ (2024/25)"
+  irdApprovalCode: string; // e.g. "IRD-KTM-2081/82-4912"
+  paperSize: "A4" | "A5" | "THERMAL_80MM" | "LETTER";
+
+  // Dynamic Visibility Toggles for Printing
+  showCompanyLogo: boolean;
+  showPrincipalCompany: boolean;
+  showFreeAndOfferItems: boolean;
+  showBankAndQR: boolean;
+  showDriverInfo: boolean;
+  showSignatures: boolean;
+  showIrdApprovalNote: boolean;
+  showHsnCodes: boolean;
+  showVatBreakdown: boolean;
+
+  // Custom Content & Disclaimers
+  termsAndConditions: string;
+  footerNote: string;
+  paymentInstructions: string;
+
+  // Settlement & QR
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branchName: string;
+  fonepayMerchantId: string;
+  fonepayQrUrl?: string;
+
+  // --- 2. FISCAL, TAX & CURRENCY ---
+  vatRate: number; // 13 (%)
+  enableVatExemption: boolean;
+  currencySymbol: string; // "रू" or "NPR"
+  priceIncludesVat: boolean; // false
+
+  // --- 3. WHOLESALE ORDER & AUTOMATION RULES ---
+  minOrderAmount: number; // e.g. 5000
+  autoConfirmOrders: boolean; // Auto-confirm verified retailers
+  defaultDeliveryGraceHours: number; // 24
+  stockHoldTimeoutHours: number; // 48
+  maxCreditDays: number; // 15
+  allowPartialCancellation: boolean; // true
+  requireDeliveryConfirmation: boolean; // true
+
+  // --- 4. NOTIFICATIONS & ALERTS ---
+  notifyOnInvoice: boolean;
+  notifyOnDispatch: boolean;
+  notificationPhone: string;
+  notificationEmail: string;
+
+  updatedAt: string;
+}
+
+const DEFAULT_DISTRIBUTOR_SETTINGS: DistributorSystemSettings = {
+  distributorId: "dist_1",
+  invoiceTemplate: "IRD_STANDARD",
+  invoiceTitle: "कर बीजक (TAX INVOICE)",
+  invoicePrefix: "INV-2026-BAG",
+  startingSequence: 1001,
+  fiscalYear: "२०८१/०८२ (2024/25)",
+  irdApprovalCode: "IRD-KTM-2081/82-4912",
+  paperSize: "A4",
+
+  showCompanyLogo: true,
+  showPrincipalCompany: true,
+  showFreeAndOfferItems: true,
+  showBankAndQR: true,
+  showDriverInfo: true,
+  showSignatures: true,
+  showIrdApprovalNote: true,
+  showHsnCodes: true,
+  showVatBreakdown: true,
+
+  termsAndConditions:
+    "१. सामान बुझिसकेपछि टुटफुट वा म्याद गुज्रेको जिम्मेवारी कम्पनीको हुने छैन।\n२. भुक्तानी बिल जारी भएको मितिले १५ दिनभित्र चुक्ता गर्नुपर्नेछ।\n३. चेक मार्फत भुक्तानी गर्दा 'Himalayan FMCG Distributors' को नाममा Account Payee चेक दिनुपर्नेछ।\n४. यो बीजक आन्तरिक राजस्व विभाग नेपालको विद्युतीय बीजक सम्बन्धी कार्यविधि अनुसार जारी गरिएको हो।",
+  footerNote: "हामीसँग थोक व्यापार गर्नुभएकोमा हार्दिक धन्यवाद! सुरक्षित र समयमै डेलिभरी हाम्रो प्रतिबद्धता।",
+  paymentInstructions:
+    "QR स्क्यान गरी Fonepay मार्फत तुरून्त भुक्तानी गर्नुहोस् वा NIC ASIA Bank खा.नं. ०१२३४८९१२०००१ मा दाखिला गर्नुहोस्।",
+
+  bankName: "NIC ASIA Bank Ltd",
+  accountName: "Himalayan FMCG Distributors Pvt. Ltd.",
+  accountNumber: "0123489120001",
+  branchName: "Kuleshwor Branch, Kathmandu",
+  fonepayMerchantId: "HIMALAYAN-FMCG-9841",
+  fonepayQrUrl: "",
+
+  vatRate: 13,
+  enableVatExemption: true,
+  currencySymbol: "रू",
+  priceIncludesVat: false,
+
+  minOrderAmount: 5000,
+  autoConfirmOrders: false,
+  defaultDeliveryGraceHours: 24,
+  stockHoldTimeoutHours: 48,
+  maxCreditDays: 15,
+  allowPartialCancellation: true,
+  requireDeliveryConfirmation: true,
+
+  notifyOnInvoice: true,
+  notifyOnDispatch: true,
+  notificationPhone: "+977-9841009988",
+  notificationEmail: "orders@himalayanfmcg.com.np",
+
+  updatedAt: new Date().toISOString(),
+};
+
 class MarketplaceStore {
   private users: MockUser[] = [...INITIAL_USERS];
   private distributors: MockDistributorProfile[] = [...INITIAL_DISTRIBUTORS];
@@ -34,6 +150,9 @@ class MarketplaceStore {
   private offers: MockOffer[] = [...INITIAL_OFFERS];
   private invoices: MockInvoice[] = [...INITIAL_INVOICES];
   private carts: Map<string, { productId: string; quantity: number; unitType: string }[]> = new Map();
+  private distributorSettings: Map<string, DistributorSystemSettings> = new Map([
+    ["dist_1", { ...DEFAULT_DISTRIBUTOR_SETTINGS }],
+  ]);
 
   constructor() {
     // Initialize default cart for retailer 1
@@ -120,6 +239,44 @@ class MarketplaceStore {
 
   setDistributorCommission(id: string, commissionRate: number): MockDistributorProfile | null {
     return this.updateDistributor(id, { commissionRate });
+  }
+
+  // --- SYSTEM & INVOICE SETTINGS ---
+  getDistributorSettings(distributorId = "dist_1"): DistributorSystemSettings {
+    const existing = this.distributorSettings.get(distributorId);
+    if (existing) {
+      return { ...existing };
+    }
+    const defaultSettings: DistributorSystemSettings = {
+      ...DEFAULT_DISTRIBUTOR_SETTINGS,
+      distributorId,
+    };
+    this.distributorSettings.set(distributorId, defaultSettings);
+    return { ...defaultSettings };
+  }
+
+  updateDistributorSettings(
+    distributorId: string,
+    updates: Partial<DistributorSystemSettings>
+  ): DistributorSystemSettings {
+    const current = this.getDistributorSettings(distributorId);
+    const updated: DistributorSystemSettings = {
+      ...current,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    this.distributorSettings.set(distributorId, updated);
+
+    // Also sync minOrderAmount and bank details with distributor profile
+    const dist = this.getDistributorById(distributorId);
+    if (dist) {
+      if (updates.minOrderAmount !== undefined) dist.minOrderAmount = updates.minOrderAmount;
+      if (updates.bankName !== undefined) dist.bankName = updates.bankName;
+      if (updates.accountName !== undefined) dist.bankAccountName = updates.accountName;
+      if (updates.accountNumber !== undefined) dist.bankAccountNumber = updates.accountNumber;
+    }
+
+    return { ...updated };
   }
 
   // --- CATEGORIES & BRANDS ---
@@ -624,13 +781,14 @@ class MarketplaceStore {
     );
   }
 
-  generateUniqueInvoiceNumber(prefix = "INV-2026-BAG"): string {
+  generateUniqueInvoiceNumber(prefix?: string): string {
+    const cleanPrefix = (prefix || this.getDistributorSettings("dist_1").invoicePrefix || "INV-2026-BAG").replace(/-+$/, "");
     let num = Math.floor(1000 + Math.random() * 9000);
-    let candidate = `${prefix}-${num}`;
+    let candidate = `${cleanPrefix}-${num}`;
     let attempts = 0;
     while (!this.isInvoiceNumberUnique(candidate) && attempts < 100) {
       num = Math.floor(1000 + Math.random() * 9000);
-      candidate = `${prefix}-${num}`;
+      candidate = `${cleanPrefix}-${num}`;
       attempts++;
     }
     return candidate;

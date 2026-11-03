@@ -3,25 +3,29 @@ import { notFound } from "next/navigation";
 import marketplaceStore from "@/lib/db/store";
 import { InvoiceView } from "@/components/shared/invoice-view";
 
-export default function InvoicePage({ params }: { params: { id: string } }) {
-  const invoice = marketplaceStore.getInvoiceById(params.id);
+export default function InvoicePage({
+  params,
+  searchParams,
+}: {
+  params: { id: string };
+  searchParams?: { from?: string };
+}) {
+  const invoice =
+    marketplaceStore.getInvoiceById(params.id) ||
+    marketplaceStore.getInvoices().find((i) => i.orderId === params.id);
 
   if (!invoice) {
-    // If invoice not found by ID, check if param matches order ID
-    const invByOrder = marketplaceStore.getInvoices().find((i) => i.orderId === params.id);
-    if (!invByOrder) {
-      notFound();
-    }
-    return (
-      <div className="py-8 px-4">
-        <InvoiceView invoice={invByOrder} backHref="/retailer/orders" />
-      </div>
-    );
+    notFound();
   }
+
+  const defaultBackHref =
+    searchParams?.from === "distributor"
+      ? `/distributor/orders/${invoice.orderId}`
+      : "/retailer/orders";
 
   return (
     <div className="py-8 px-4">
-      <InvoiceView invoice={invoice} backHref="/retailer/orders" />
+      <InvoiceView invoice={invoice} backHref={defaultBackHref} />
     </div>
   );
 }

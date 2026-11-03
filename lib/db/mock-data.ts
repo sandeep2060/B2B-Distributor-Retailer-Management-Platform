@@ -153,6 +153,7 @@ export interface MockOrderItem {
   productId: string;
   productTitle: string;
   productSku: string;
+  companyName?: string; // Principal manufacturing company (e.g. Unilever, Dabur)
   unitType: string;
   quantity: number;
   unitPrice: number;

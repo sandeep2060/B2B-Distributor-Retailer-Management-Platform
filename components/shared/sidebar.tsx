@@ -11,6 +11,7 @@ import {
   Percent,
   BarChart3,
   Settings,
+  Sliders,
   Store,
   Building2,
   LogOut,
@@ -72,6 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { label: "Orders Received", href: "/distributor/orders", icon: ShoppingCart, badge: "2 New" },
     { label: "Delivery Tracking", href: "/distributor/deliveries", icon: Truck },
     { label: "Commissions", href: "/distributor/commissions", icon: BarChart3 },
+    { label: "System Settings", href: "/distributor/system-settings", icon: Sliders },
     { label: "Business Profile", href: "/distributor/settings", icon: Settings },
   ];
 
