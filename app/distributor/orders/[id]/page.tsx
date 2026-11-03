@@ -62,6 +62,23 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
   const [driverPhone, setDriverPhone] = useState(order?.deliveryPerson?.phone || "9841009988");
   const [vehicleNo, setVehicleNo] = useState(order?.deliveryPerson?.vehicleNo || "Ba 2 Kha 4490");
 
+  // Invoice Number State & Live Uniqueness Check
+  const [invoiceNumberInput, setInvoiceNumberInput] = useState(
+    order?.invoiceNumber || marketplaceStore.generateUniqueInvoiceNumber()
+  );
+  const [invoiceErrorMessage, setInvoiceErrorMessage] = useState("");
+
+  const isInvoiceNumUnique = useMemo(() => {
+    if (!invoiceNumberInput.trim()) return false;
+    return marketplaceStore.isInvoiceNumberUnique(invoiceNumberInput.trim(), order?.id);
+  }, [invoiceNumberInput, order?.id]);
+
+  const handleAutoGenerateInvoiceNumber = () => {
+    const generated = marketplaceStore.generateUniqueInvoiceNumber();
+    setInvoiceNumberInput(generated);
+    setInvoiceErrorMessage("");
+  };
+
   if (!order) {
     notFound();
   }
@@ -195,9 +212,24 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
   // 3. Set Invoice for Selected Items & Send Notice
   const handleGenerateInvoice = async () => {
     if (selectedItemIds.length === 0) {
-      alert("Please select at least 1 item to include in the tax invoice.");
+      setInvoiceErrorMessage("Please select at least 1 item to include in the tax invoice.");
       return;
     }
+
+    const cleanInvNo = invoiceNumberInput.trim().toUpperCase();
+    if (!cleanInvNo) {
+      setInvoiceErrorMessage("Please enter or generate an invoice number.");
+      return;
+    }
+
+    if (!marketplaceStore.isInvoiceNumberUnique(cleanInvNo, order.id)) {
+      setInvoiceErrorMessage(
+        `Invoice number "${cleanInvNo}" is already in use by another order. Please provide a unique invoice number.`
+      );
+      return;
+    }
+
+    setInvoiceErrorMessage("");
     setUpdating(true);
     try {
       const res = await fetch(`/api/orders/${order.id}/status`, {
@@ -206,18 +238,24 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
         body: JSON.stringify({
           action: "SET_INVOICE",
           selectedItemIds,
+          invoiceNumber: cleanInvNo,
         }),
       });
       const data = await res.json();
+      if (!res.ok || data.error) {
+        setInvoiceErrorMessage(data.error || "Failed to generate invoice");
+        return;
+      }
       if (data.success && data.order) {
         setOrder({ ...data.order });
+        setInvoiceNumberInput(data.order.invoiceNumber);
         setActionSuccessMsg(
           `Official Tax Invoice (${data.order.invoiceNumber}) issued! Confirmation notice delivered to ${order.retailerShop}.`
         );
         setTimeout(() => setActionSuccessMsg(""), 6000);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setInvoiceErrorMessage(e.message || "Failed to communicate with server");
     } finally {
       setUpdating(false);
     }
@@ -487,51 +525,146 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
       {/* SECTION: Line Items Table & Invoicing Selection Controls */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-soft space-y-0">
         {/* Invoicing Control Bar */}
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 to-blue-50/40 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-sm text-[#102C55] flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-[#0759C7]" />
-              Wholesale Cartons Ordered & Invoice Selection
-            </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
-              Select individual items to generate official tax invoice. Cancel any out-of-stock items with reason.
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 to-blue-50/40 border-b border-slate-200 space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-sm text-[#102C55] flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-[#0759C7]" />
+                Wholesale Cartons Ordered & Tax Invoice Builder
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Set a unique IRD invoice number, select individual items to invoice, or cancel out-of-stock items with reason.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {order.isInvoiced && (
+                <Link href={`/retailer/invoices/${order.id}`}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="font-bold text-xs h-9 flex items-center gap-1.5 border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>View Current Invoice ({order.invoiceNumber})</span>
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Invoice Number Input & Uniqueness Verification Box */}
+          <div className="p-3.5 bg-white rounded-xl border border-blue-200/90 shadow-xs space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="text-xs font-bold text-[#102C55] flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-[#0759C7]" />
+                <span>IRD Tax Invoice Number (कर इनभ्वाइस नं.) *</span>
+              </label>
+
+              {/* Live Uniqueness Badge */}
+              <div className="flex items-center gap-2">
+                {invoiceNumberInput.trim() ? (
+                  isInvoiceNumUnique ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>✓ Unique & Available (स्वीकृत)</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-300 animate-pulse">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                      <span>✕ Already in Use (दोहोरिएको नम्बर)</span>
+                    </span>
+                  )
+                ) : (
+                  <span className="text-[11px] font-semibold text-slate-400">
+                    Invoice number required
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={invoiceNumberInput}
+                  onChange={(e) => {
+                    setInvoiceNumberInput(e.target.value.toUpperCase());
+                    setInvoiceErrorMessage("");
+                  }}
+                  placeholder="e.g. INV-2026-BAG-00915, DLR-KTM-080/81-0012, or serial bill no."
+                  className={`w-full h-9 px-3 rounded-lg border font-mono font-bold text-xs uppercase tracking-wider focus:ring-2 focus:ring-[#0759C7] ${
+                    isInvoiceNumUnique
+                      ? "border-emerald-400 bg-emerald-50/20 text-slate-900"
+                      : invoiceNumberInput.trim()
+                      ? "border-rose-400 bg-rose-50/30 text-rose-950"
+                      : "border-slate-300 bg-white"
+                  }`}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAutoGenerateInvoiceNumber}
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 flex items-center justify-center gap-1.5 transition-colors shrink-0"
+                title="Auto-generate a guaranteed unique invoice number"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#0759C7]" />
+                <span>⚡ Auto-Generate Unique</span>
+              </button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                isLoading={updating}
+                onClick={handleGenerateInvoice}
+                disabled={selectedItemIds.length === 0 || !isInvoiceNumUnique}
+                className="font-bold text-xs h-9 flex items-center justify-center gap-1.5 shadow-sm shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>
+                  {order.isInvoiced
+                    ? `Update Invoice (${selectedItems.length} Items)`
+                    : `Confirm & Issue Invoice (${selectedItems.length} Items)`}
+                </span>
+              </Button>
+            </div>
+
+            {/* Error Message if duplicate or validation fails */}
+            {invoiceErrorMessage && (
+              <p className="text-[11px] font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded border border-rose-200 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>{invoiceErrorMessage}</span>
+              </p>
+            )}
+
+            <p className="text-[10px] text-slate-400">
+              Unique Nepal IRD Invoice Number format. Must be unique across all marketplace orders (e.g., from physical tax invoice book or system series).
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 mr-2 text-xs">
+          {/* Quick Select / Deselect Bar */}
+          <div className="flex items-center justify-between text-xs pt-1">
+            <span className="text-[11px] text-slate-600">
+              Check / uncheck individual items to include in this invoice ({selectedItems.length} of {activeItems.length} selected):
+            </span>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={selectAllActive}
-                className="text-[11px] text-slate-600 hover:text-[#0759C7] font-semibold underline"
+                className="text-[11px] text-[#0759C7] hover:underline font-bold"
               >
-                Select All
+                Select All ({activeItems.length})
               </button>
               <span className="text-slate-300">•</span>
               <button
                 type="button"
                 onClick={deselectAll}
-                className="text-[11px] text-slate-600 hover:text-red-600 font-semibold underline"
+                className="text-[11px] text-slate-500 hover:text-red-600 font-semibold underline"
               >
                 Clear
               </button>
             </div>
-
-            <Button
-              variant="primary"
-              size="sm"
-              isLoading={updating}
-              onClick={handleGenerateInvoice}
-              disabled={selectedItemIds.length === 0}
-              className="font-bold text-xs h-9 flex items-center gap-1.5 shadow-sm"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>
-                {order.isInvoiced
-                  ? `Update Invoice (${selectedItems.length} Items - ${formatNPR(selectedInvoiceGrandTotal)})`
-                  : `Confirm & Generate Invoice (${selectedItems.length} Items)`}
-              </span>
-            </Button>
           </div>
         </div>
 

@@ -6,7 +6,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const session = await requireAuth(["SUPER_ADMIN", "DISTRIBUTOR"]);
     const body = await request.json();
-    const { action, itemId, cancelReason, selectedItemIds, deliveryDate, timeSlot, deliveryPerson, status } = body;
+    const { action, itemId, cancelReason, selectedItemIds, invoiceNumber, deliveryDate, timeSlot, deliveryPerson, status } = body;
 
     const orderId = params.id;
     const order = marketplaceStore.getOrderById(orderId);
@@ -43,7 +43,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       if (!selectedItemIds || !Array.isArray(selectedItemIds) || selectedItemIds.length === 0) {
         return NextResponse.json({ error: "At least one item must be selected for invoicing" }, { status: 400 });
       }
-      const result = marketplaceStore.setOrderInvoice(order.id, selectedItemIds);
+
+      if (invoiceNumber && typeof invoiceNumber === "string" && invoiceNumber.trim()) {
+        const cleanInv = invoiceNumber.trim().toUpperCase();
+        if (!marketplaceStore.isInvoiceNumberUnique(cleanInv, order.id)) {
+          return NextResponse.json(
+            { error: `Invoice number "${cleanInv}" is already in use by another order. Please provide a unique invoice number.` },
+            { status: 400 }
+          );
+        }
+      }
+
+      const result = marketplaceStore.setOrderInvoice(order.id, selectedItemIds, invoiceNumber);
+      if (result && "error" in result && result.error) {
+        return NextResponse.json({ error: result.error }, { status: 400 });
+      }
       return NextResponse.json({ success: true, ...result });
     }
 

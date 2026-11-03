@@ -614,12 +614,54 @@ class MarketplaceStore {
     return order;
   }
 
+  isInvoiceNumberUnique(invoiceNumber: string, currentOrderId?: string): boolean {
+    if (!invoiceNumber || !invoiceNumber.trim()) return false;
+    const clean = invoiceNumber.trim().toUpperCase();
+    return !this.invoices.some(
+      (inv) =>
+        inv.invoiceNumber.toUpperCase() === clean &&
+        (!currentOrderId || (inv.orderId !== currentOrderId && inv.id !== currentOrderId))
+    );
+  }
+
+  generateUniqueInvoiceNumber(prefix = "INV-2026-BAG"): string {
+    let num = Math.floor(1000 + Math.random() * 9000);
+    let candidate = `${prefix}-${num}`;
+    let attempts = 0;
+    while (!this.isInvoiceNumberUnique(candidate) && attempts < 100) {
+      num = Math.floor(1000 + Math.random() * 9000);
+      candidate = `${prefix}-${num}`;
+      attempts++;
+    }
+    return candidate;
+  }
+
   setOrderInvoice(
     orderId: string,
-    selectedItemIds: string[]
-  ): { order: MockOrder; invoice: MockInvoice; notice: any } | null {
+    selectedItemIds: string[],
+    customInvoiceNumber?: string
+  ): { order: MockOrder; invoice: MockInvoice; notice: any } | { error: string } | null {
     const order = this.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
     if (!order) return null;
+
+    let finalInvNum: string;
+    if (customInvoiceNumber && customInvoiceNumber.trim()) {
+      const cleanInvNum = customInvoiceNumber.trim().toUpperCase();
+      if (!this.isInvoiceNumberUnique(cleanInvNum, order.id)) {
+        const conflict = this.invoices.find(
+          (i) => i.invoiceNumber.toUpperCase() === cleanInvNum && i.orderId !== order.id
+        );
+        return {
+          error: `Invoice number "${cleanInvNum}" is already in use by order ${
+            conflict?.orderNumber || "another order"
+          }. Please provide a unique invoice number.`,
+        };
+      }
+      finalInvNum = cleanInvNum;
+    } else {
+      let existingInv = this.invoices.find((i) => i.orderId === order.id);
+      finalInvNum = existingInv?.invoiceNumber || this.generateUniqueInvoiceNumber();
+    }
 
     order.items.forEach((item) => {
       item.isInvoiced = !item.isCancelled && selectedItemIds.includes(item.id);
@@ -638,6 +680,7 @@ class MarketplaceStore {
     const ret = this.getRetailerByUserId(order.retailerId);
 
     if (invoice) {
+      invoice.invoiceNumber = finalInvNum;
       invoice.items = invoicedItems;
       invoice.taxableAmount = taxableSubtotal;
       invoice.vatAmount = vatAmount;
@@ -645,10 +688,9 @@ class MarketplaceStore {
       invoice.grandTotal = grandTotal;
       invoice.status = order.paymentStatus === "PAID" ? "PAID" : "PENDING";
     } else {
-      const invoiceNumber = `INV-2026-BAG-${Math.floor(1000 + Math.random() * 9000)}`;
       invoice = {
         id: `inv_${Date.now()}`,
-        invoiceNumber,
+        invoiceNumber: finalInvNum,
         orderId: order.id,
         orderNumber: order.orderNumber,
         distributorId: order.distributorId,
@@ -677,7 +719,7 @@ class MarketplaceStore {
 
     order.isInvoiced = true;
     order.invoiceId = invoice.id;
-    order.invoiceNumber = invoice.invoiceNumber;
+    order.invoiceNumber = finalInvNum;
     order.invoicedAt = new Date().toISOString();
 
     if (order.status === "PENDING") {
@@ -686,7 +728,7 @@ class MarketplaceStore {
 
     const notice = {
       sentAt: new Date().toISOString(),
-      message: `तपाईंको अर्डर (${order.orderNumber}) स्वीकृत भएको छ र आधिकारिक कर इनभ्वाइस (${invoice.invoiceNumber}) जारी भएको छ। कुल रकम: रु. ${grandTotal.toLocaleString("ne-NP")}`,
+      message: `तपाईंको अर्डर (${order.orderNumber}) स्वीकृत भएको छ र आधिकारिक कर इनभ्वाइस (${finalInvNum}) जारी भएको छ। कुल रकम: रु. ${grandTotal.toLocaleString("ne-NP")}`,
       recipientPhone: order.deliveryAddress.phone,
     };
     order.confirmationNotice = notice;
