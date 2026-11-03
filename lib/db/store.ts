@@ -224,6 +224,7 @@ class MarketplaceStore {
 
         // Apply tier pricing if quantity matches
         let unitPrice = product.wholesalePrice;
+        let appliedTierDiscount = 0;
         if (product.tierPricing && product.tierPricing.length > 0) {
           const matchedTier = product.tierPricing
             .slice()
@@ -231,32 +232,94 @@ class MarketplaceStore {
             .find((t) => item.quantity >= t.minQty && (!t.maxQty || item.quantity <= t.maxQty));
           if (matchedTier) {
             unitPrice = matchedTier.pricePerCarton;
+            appliedTierDiscount = product.wholesalePrice - unitPrice;
           }
         }
 
-        const totalPrice = unitPrice * item.quantity;
+        // Buy X Get Y Free Scheme calculation
+        let earnedFreeQty = 0;
+        let earnedFreeItem = product.freeItemName || `${product.title} (Bonus Scheme)`;
+        if (product.hasFreeScheme && product.freeSchemeMinQty && product.freeSchemeMinQty > 0) {
+          if (item.quantity >= product.freeSchemeMinQty) {
+            const ratio = Math.floor(item.quantity / product.freeSchemeMinQty);
+            earnedFreeQty = ratio * (product.freeItemQty || 1);
+          }
+        }
+
+        // Spot Cash Discount calculation (e.g. 2% for COD or instant bank QR)
+        const cashDiscountRate = product.cashDiscountPercent || 0;
+        const lineTotal = unitPrice * item.quantity;
+        const cashDiscountAmount = Math.round(((lineTotal * cashDiscountRate) / 100) * 100) / 100;
+        const isVatExempt = product.taxCategory === "VAT_EXEMPT";
+
         return {
           productId: product.id,
           product,
           quantity: item.quantity,
           unitType: item.unitType,
           unitPrice,
-          totalPrice,
+          totalPrice: lineTotal,
+          appliedTierDiscount,
+          earnedFreeQty,
+          earnedFreeItem,
+          cashDiscountRate,
+          cashDiscountAmount,
+          isVatExempt,
+          promotionalGift: product.promotionalGift,
+          festivalTag: product.festivalTag,
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
     const subtotal = populated.reduce((acc, curr) => acc + (curr ? curr.totalPrice : 0), 0);
-    const taxAmount = Math.round(subtotal * 0.13 * 100) / 100;
+    
+    // Taxable subtotal (exclude VAT-exempt items like unrefined oil, rice, pulses)
+    const taxableSubtotal = populated
+      .filter((i) => !i.isVatExempt)
+      .reduce((acc, curr) => acc + curr.totalPrice, 0);
+    const vatExemptSubtotal = populated
+      .filter((i) => i.isVatExempt)
+      .reduce((acc, curr) => acc + curr.totalPrice, 0);
+
+    const taxAmount = Math.round(taxableSubtotal * 0.13 * 100) / 100;
     const deliveryFee = subtotal >= 5000 ? 0 : 150;
+    
+    // Total potential spot cash discount across all products in cart
+    const totalCashDiscount = populated.reduce((acc, curr) => acc + (curr.cashDiscountAmount || 0), 0);
+
+    // Total free bonus cartons awarded
+    const totalFreeUnits = populated.reduce((acc, curr) => acc + (curr.earnedFreeQty || 0), 0);
+
+    // List of earned free schemes
+    const freeSchemeAwards = populated
+      .filter((i) => i.earnedFreeQty > 0)
+      .map((i) => ({
+        productId: i.productId,
+        title: i.earnedFreeItem,
+        quantity: i.earnedFreeQty,
+        unitType: i.unitType,
+        sourceProduct: i.product.title,
+      }));
+
+    // List of earned promotional merchandise gifts
+    const giftsAwarded = populated
+      .filter((i) => Boolean(i.promotionalGift))
+      .map((i) => i.promotionalGift as string);
+
     const totalAmount = subtotal + taxAmount + deliveryFee;
 
     return {
       items: populated,
       itemCount: populated.reduce((sum, item) => sum + (item ? item.quantity : 0), 0),
       subtotal,
+      taxableSubtotal,
+      vatExemptSubtotal,
       taxAmount,
       deliveryFee,
+      totalCashDiscount,
+      totalFreeUnits,
+      freeSchemeAwards,
+      giftsAwarded,
       totalAmount,
     };
   }
@@ -342,8 +405,11 @@ class MarketplaceStore {
       retailerPan: ret?.panVatNumber || "301234567",
       retailerAddress: `${newOrder.deliveryAddress.municipality}-${newOrder.deliveryAddress.ward}, ${newOrder.deliveryAddress.district}`,
       retailerPhone: newOrder.deliveryAddress.phone,
-      taxableAmount: newOrder.subtotal - newOrder.discountAmount,
+      taxableAmount: newOrder.taxCategoryBreakdown?.taxable ?? (newOrder.subtotal - newOrder.discountAmount),
       vatAmount: newOrder.taxAmount,
+      vatExemptAmount: newOrder.taxCategoryBreakdown?.vatExempt ?? 0,
+      cashDiscountAmount: newOrder.cashDiscountAmount ?? 0,
+      freeItemsAwarded: newOrder.freeItemsAwarded ?? [],
       grandTotal: newOrder.totalAmount,
       status: newOrder.paymentStatus === "PAID" ? "PAID" : "PENDING",
       createdAt: new Date().toISOString(),

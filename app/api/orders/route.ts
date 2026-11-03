@@ -62,10 +62,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Commission calculation
+    // Real-market trade discount calculation:
+    // Spot Cash Discount (CD) applies for COD or Instant Bank/Fonepay settlement
+    const isSpotCashPayment = ["CASH_ON_DELIVERY", "BANK_TRANSFER", "FONEPAY"].includes(data.paymentMethod);
+    const spotCashDiscount = isSpotCashPayment ? (cart.totalCashDiscount || 0) : 0;
+    const totalDiscount = spotCashDiscount;
+    const finalTotalAmount = Math.max(0, cart.totalAmount - spotCashDiscount);
+
+    // Commission calculation based on net subtotal
+    const netSubtotal = cart.subtotal - totalDiscount;
     const commissionRate = dist?.commissionRate || 3.0;
-    const commissionAmount = Math.round(((cart.subtotal * commissionRate) / 100) * 100) / 100;
-    const netDistributorEarnings = cart.subtotal - commissionAmount;
+    const commissionAmount = Math.round(((netSubtotal * commissionRate) / 100) * 100) / 100;
+    const netDistributorEarnings = netSubtotal - commissionAmount;
 
     const orderItems = cart.items
       .filter((item): item is NonNullable<typeof item> => Boolean(item))
@@ -78,7 +86,16 @@ export async function POST(request: Request) {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: item.totalPrice,
+        spotDiscountPercent: item.cashDiscountRate,
+        isVatExempt: item.isVatExempt,
+        freeSchemeNote: item.earnedFreeQty > 0 ? `+${item.earnedFreeQty} ${item.earnedFreeItem}` : undefined,
       }));
+
+    const freeItemsAwarded = (cart.freeSchemeAwards || []).map((f: any) => ({
+      title: f.title,
+      quantity: f.quantity,
+      unitType: f.unitType || "CARTON",
+    }));
 
     const newOrder = marketplaceStore.createOrder({
       retailerId: userId,
@@ -91,10 +108,17 @@ export async function POST(request: Request) {
       paymentStatus: data.paymentMethod === "BANK_TRANSFER" ? "PAID" : "PENDING",
       paymentMethod: data.paymentMethod as any,
       subtotal: cart.subtotal,
-      discountAmount: 0,
+      discountAmount: totalDiscount,
+      cashDiscountAmount: spotCashDiscount,
+      freeItemsAwarded,
+      taxCategoryBreakdown: {
+        taxable: cart.taxableSubtotal || 0,
+        vatExempt: cart.vatExemptSubtotal || 0,
+        vatAmount: cart.taxAmount,
+      },
       deliveryFee: cart.deliveryFee,
       taxAmount: cart.taxAmount,
-      totalAmount: cart.totalAmount,
+      totalAmount: finalTotalAmount,
       commissionRate,
       commissionAmount,
       netDistributorEarnings,

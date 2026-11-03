@@ -163,8 +163,9 @@ export default function DistributorProductsPage() {
               <tr>
                 <th className="py-3 px-4">Product / SKU</th>
                 <th className="py-3 px-4">Category & Brand</th>
-                <th className="py-3 px-4">Packaging</th>
-                <th className="py-3 px-4 text-right">Wholesale Price (Carton)</th>
+                <th className="py-3 px-4">Packaging & Tax</th>
+                <th className="py-3 px-4 text-right">Wholesale Rate</th>
+                <th className="py-3 px-4">Active Schemes & Offers</th>
                 <th className="py-3 px-4 text-center">MOQ</th>
                 <th className="py-3 px-4 text-center">Warehouse Stock</th>
                 <th className="py-3 px-4 text-center">Status</th>
@@ -196,8 +197,15 @@ export default function DistributorProductsPage() {
                       <p className="text-[10px] text-slate-400">{prod.categoryName}</p>
                     </td>
 
-                    <td className="py-3.5 px-4 font-medium text-slate-600">
-                      {prod.packSize || `${prod.unitsPerCarton} Pcs/Ctn`}
+                    <td className="py-3.5 px-4 text-slate-600">
+                      <p className="font-medium">{prod.packSize || `${prod.unitsPerCarton} Pcs/Ctn`}</p>
+                      <p className="text-[10px]">
+                        {prod.taxCategory === "VAT_EXEMPT" ? (
+                          <span className="font-bold text-amber-700">0% VAT Exempt</span>
+                        ) : (
+                          <span className="text-slate-400">13% Taxable</span>
+                        )}
+                      </p>
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-[#0759C7]">
@@ -205,6 +213,36 @@ export default function DistributorProductsPage() {
                       <span className="block text-[10px] text-slate-400 line-through">
                         {formatNPR(prod.cartonMrp)}
                       </span>
+                    </td>
+
+                    <td className="py-3.5 px-4 max-w-[200px]">
+                      <div className="flex flex-wrap gap-1">
+                        {prod.hasFreeScheme && (
+                          <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            🎁 Buy {prod.freeSchemeMinQty} +{prod.freeItemQty || 1} Free
+                          </span>
+                        )}
+                        {Boolean(prod.cashDiscountPercent && prod.cashDiscountPercent > 0) && (
+                          <span className="inline-block bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            ⚡ {prod.cashDiscountPercent}% Spot CD
+                          </span>
+                        )}
+                        {prod.tierPricing && prod.tierPricing.length > 0 && (
+                          <span className="inline-block bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            📊 {prod.tierPricing.length} Slabs
+                          </span>
+                        )}
+                        {prod.festivalTag && (
+                          <span className="inline-block bg-rose-50 text-rose-800 border border-rose-200 text-[10px] font-black px-1.5 py-0.5 rounded">
+                            🎉 {prod.festivalTag}
+                          </span>
+                        )}
+                        {prod.promotionalGift && (
+                          <span className="inline-block bg-purple-50 text-purple-800 border border-purple-200 text-[10px] font-bold px-1.5 py-0.5 rounded truncate max-w-[150px]" title={prod.promotionalGift}>
+                            ✨ Gift Item
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-4 text-center font-bold text-slate-800 font-mono">

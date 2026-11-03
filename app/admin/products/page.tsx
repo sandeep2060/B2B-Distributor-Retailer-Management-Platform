@@ -37,8 +37,9 @@ export default function AdminProductsPage() {
               <tr>
                 <th className="py-3 px-4">Product Title</th>
                 <th className="py-3 px-4">Distributor</th>
-                <th className="py-3 px-4">Category</th>
+                <th className="py-3 px-4">Category & Tax</th>
                 <th className="py-3 px-4 text-right">Wholesale Rate</th>
+                <th className="py-3 px-4">Trade Schemes</th>
                 <th className="py-3 px-4 text-center">Stock</th>
                 <th className="py-3 px-4 text-center">Featured on Home</th>
                 <th className="py-3 px-4 text-right">Actions</th>
@@ -52,9 +53,42 @@ export default function AdminProductsPage() {
                     <p className="text-[10px] text-slate-400 font-mono">SKU: {p.sku}</p>
                   </td>
                   <td className="py-3.5 px-4 font-semibold text-slate-800">{p.distributorName}</td>
-                  <td className="py-3.5 px-4 text-slate-600">{p.categoryName}</td>
+                  <td className="py-3.5 px-4">
+                    <p className="text-slate-600">{p.categoryName}</p>
+                    <span className="text-[10px] font-bold">
+                      {p.taxCategory === "VAT_EXEMPT" ? (
+                        <span className="text-amber-700">0% VAT Exempt</span>
+                      ) : (
+                        <span className="text-slate-400">13% VAT</span>
+                      )}
+                    </span>
+                  </td>
                   <td className="py-3.5 px-4 text-right font-mono font-bold text-[#0759C7]">
                     {formatNPR(p.wholesalePrice)}
+                  </td>
+                  <td className="py-3.5 px-4">
+                    <div className="flex flex-wrap gap-1 max-w-[180px]">
+                      {p.hasFreeScheme && (
+                        <span className="text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-1 py-0.5 rounded">
+                          🎁 {p.freeSchemeMinQty}+{p.freeItemQty || 1} Free
+                        </span>
+                      )}
+                      {Boolean(p.cashDiscountPercent && p.cashDiscountPercent > 0) && (
+                        <span className="text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1 py-0.5 rounded">
+                          ⚡ {p.cashDiscountPercent}% CD
+                        </span>
+                      )}
+                      {p.tierPricing && p.tierPricing.length > 0 && (
+                        <span className="text-[9px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-1 py-0.5 rounded">
+                          📊 {p.tierPricing.length} Slabs
+                        </span>
+                      )}
+                      {p.festivalTag && (
+                        <span className="text-[9px] font-black bg-rose-50 text-rose-800 border border-rose-200 px-1 py-0.5 rounded">
+                          🎉 {p.festivalTag}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3.5 px-4 text-center font-mono">{p.stockQuantity} ctns</td>
                   <td className="py-3.5 px-4 text-center">

@@ -161,7 +161,23 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 <tr key={item.id} className="hover:bg-slate-50/50">
                   <td className="py-3.5 px-4">
                     <p className="font-bold text-slate-900">{item.productTitle}</p>
-                    <p className="text-[11px] text-slate-400 font-mono">SKU: {item.productSku}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] text-slate-400 font-mono">SKU: {item.productSku}</span>
+                      {item.isVatExempt ? (
+                        <span className="text-[9px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                          0% VAT-Exempt
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                          13% VAT
+                        </span>
+                      )}
+                      {item.freeSchemeNote && (
+                        <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+                          {item.freeSchemeNote}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3.5 px-4 text-center font-medium text-slate-600">{item.unitType}</td>
                   <td className="py-3.5 px-4 text-center font-bold text-slate-900 font-mono">{item.quantity}</td>
@@ -171,6 +187,21 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                   </td>
                 </tr>
               ))}
+
+              {order.freeItemsAwarded && order.freeItemsAwarded.length > 0 && (
+                order.freeItemsAwarded.map((freeItem, fIdx) => (
+                  <tr key={`free_${fIdx}`} className="bg-emerald-50/60 text-emerald-900">
+                    <td className="py-3.5 px-4">
+                      <p className="font-bold text-emerald-900">{freeItem.title}</p>
+                      <p className="text-[10px] text-emerald-700">Trade Scheme Bonus / Free Wholesale Promotion</p>
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-medium text-emerald-800">{freeItem.unitType}</td>
+                    <td className="py-3.5 px-4 text-center font-bold text-emerald-900 font-mono">{freeItem.quantity}</td>
+                    <td className="py-3.5 px-4 text-right font-mono text-emerald-700">Rs. 0.00</td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-800">Rs. 0.00 (FREE)</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -180,25 +211,42 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
           <div className="space-y-1 text-slate-500 max-w-sm">
             <p className="font-bold text-slate-700">Official IRD Compliant Billing</p>
             <p>
-              This order contains 13% Value Added Tax (VAT) in accordance with the Inland Revenue Department of Nepal.
+              Inland Revenue Department of Nepal tax standards applied. Taxable goods carry 13% VAT; agricultural / staple products are exempt under Schedule 1.
             </p>
           </div>
 
-          <div className="w-full sm:w-64 space-y-1.5">
+          <div className="w-full sm:w-72 space-y-1.5">
             <div className="flex justify-between text-slate-600">
               <span>Subtotal:</span>
               <span className="font-mono font-bold text-slate-800">{formatNPR(order.subtotal)}</span>
             </div>
+
+            {order.taxCategoryBreakdown && order.taxCategoryBreakdown.vatExempt > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>VAT-Exempt Goods:</span>
+                <span className="font-mono font-bold text-slate-800">{formatNPR(order.taxCategoryBreakdown.vatExempt)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between text-slate-600">
-              <span>VAT (13%):</span>
+              <span>VAT (13% Standard):</span>
               <span className="font-mono font-bold text-slate-800">{formatNPR(order.taxAmount)}</span>
             </div>
+
             <div className="flex justify-between text-slate-600">
               <span>Delivery Fee:</span>
               <span className="font-mono font-bold text-slate-800">
                 {order.deliveryFee === 0 ? "FREE" : formatNPR(order.deliveryFee)}
               </span>
             </div>
+
+            {Boolean(order.cashDiscountAmount && order.cashDiscountAmount > 0) && (
+              <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50 p-1 rounded">
+                <span>Spot Cash Discount (CD):</span>
+                <span className="font-mono">-{formatNPR(order.cashDiscountAmount)}</span>
+              </div>
+            )}
+
             <div className="pt-2 border-t-2 border-slate-900 flex justify-between text-sm font-black text-[#102C55]">
               <span>Grand Total:</span>
               <span className="font-mono text-base text-[#0759C7]">{formatNPR(order.totalAmount)}</span>

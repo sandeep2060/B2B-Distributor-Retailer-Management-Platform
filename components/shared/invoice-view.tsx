@@ -120,7 +120,23 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, backHref = "/
                   <td className="py-3 px-2 text-center font-mono text-slate-500">{index + 1}</td>
                   <td className="py-3 px-2">
                     <p className="font-bold text-slate-900">{item.productTitle}</p>
-                    <p className="text-[11px] text-slate-500 font-mono">SKU: {item.productSku}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] text-slate-500 font-mono">SKU: {item.productSku}</span>
+                      {item.isVatExempt ? (
+                        <span className="text-[9px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                          VAT Exempt (Sched 1)
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                          13% Taxable
+                        </span>
+                      )}
+                      {item.freeSchemeNote && (
+                        <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+                          Scheme: {item.freeSchemeNote}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 px-2 text-center text-slate-600 font-medium">{item.unitType}</td>
                   <td className="py-3 px-2 text-center font-bold text-slate-900">{item.quantity}</td>
@@ -130,6 +146,23 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, backHref = "/
                   </td>
                 </tr>
               ))}
+
+              {/* Free Trade Scheme Items (Compliant IRD Zero-Rate Trade Incentive) */}
+              {invoice.freeItemsAwarded && invoice.freeItemsAwarded.length > 0 && (
+                invoice.freeItemsAwarded.map((freeItem, fIdx) => (
+                  <tr key={`free_${fIdx}`} className="bg-emerald-50/50 text-emerald-900">
+                    <td className="py-3 px-2 text-center font-mono text-emerald-700">{invoice.items.length + fIdx + 1}</td>
+                    <td className="py-3 px-2">
+                      <p className="font-bold text-emerald-900">{freeItem.title}</p>
+                      <p className="text-[10px] text-emerald-700">Trade Scheme Bonus / Free Promotion Goods (Zero Rated)</p>
+                    </td>
+                    <td className="py-3 px-2 text-center text-emerald-800 font-medium">{freeItem.unitType}</td>
+                    <td className="py-3 px-2 text-center font-bold text-emerald-900">{freeItem.quantity}</td>
+                    <td className="py-3 px-2 text-right font-mono text-emerald-700">Rs. 0.00</td>
+                    <td className="py-3 px-2 text-right font-mono font-bold text-emerald-800">Rs. 0.00 (FREE)</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -142,21 +175,36 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, backHref = "/
               <span>Verified B2B Wholesale Electronic Invoice</span>
             </div>
             <p>
-              Goods once sold and delivered in original sealed cartons may only be returned within 48 hours in case of
-              transit damage or manufacturing defect.
+              Prepared in compliance with Inland Revenue Department (IRD) Nepal standards. Goods once delivered in sealed manufacturer packaging are covered by warranty against transit damage.
             </p>
-            <p className="font-medium text-slate-700">Thank you for ordering on B2B Deal Nepal!</p>
+            <p className="font-medium text-slate-700">Thank you for partnering with B2B Deal Nepal!</p>
           </div>
 
-          <div className="w-full sm:w-72 space-y-2 text-xs">
+          <div className="w-full sm:w-80 space-y-2 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-600">Taxable Subtotal:</span>
+              <span className="text-slate-600">Taxable Goods Subtotal:</span>
               <span className="font-mono font-medium">{formatNPR(invoice.taxableAmount)}</span>
             </div>
+
+            {Boolean(invoice.vatExemptAmount && invoice.vatExemptAmount > 0) && (
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-600">VAT-Exempt Goods Subtotal:</span>
+                <span className="font-mono font-medium">{formatNPR(invoice.vatExemptAmount)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-600">VAT (13%):</span>
+              <span className="text-slate-600">VAT (13% Standard):</span>
               <span className="font-mono font-medium">{formatNPR(invoice.vatAmount)}</span>
             </div>
+
+            {Boolean(invoice.cashDiscountAmount && invoice.cashDiscountAmount > 0) && (
+              <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700 font-bold">
+                <span>Spot Cash Discount (CD):</span>
+                <span className="font-mono">-{formatNPR(invoice.cashDiscountAmount)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between py-2 text-sm font-black text-[#102C55] border-t-2 border-slate-900">
               <span>Grand Total:</span>
               <span className="font-mono text-base text-[#0759C7]">{formatNPR(invoice.grandTotal)}</span>

@@ -18,6 +18,14 @@ import {
   FileText,
   Star,
   Check,
+  Gift,
+  Tag,
+  Percent,
+  Sparkles,
+  Clock,
+  BadgePercent,
+  HelpCircle,
+  Coins,
 } from "lucide-react";
 
 export default function ProductDetailPage({ params }: { params: { slug: string } }) {
@@ -59,6 +67,15 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   const singleUnitWholesalePrice = Math.round((effectiveCartonPrice / product.unitsPerCarton) * 100) / 100;
   const totalMarginNPR = (product.cartonMrp - effectiveCartonPrice) * qty;
 
+  // Real-Market Offers Calculations
+  const freeSchemeMin = product.freeSchemeMinQty || 10;
+  const freeSchemeMultiplier = Math.floor(qty / freeSchemeMin);
+  const earnedFreeQty = product.hasFreeScheme ? freeSchemeMultiplier * (product.freeItemQty || 1) : 0;
+  const remainingForFree = product.hasFreeScheme ? freeSchemeMin - (qty % freeSchemeMin) : 0;
+
+  const cashDiscountPercent = product.cashDiscountPercent || 2.0;
+  const spotDiscountAmount = Math.round(((totalSubtotal * cashDiscountPercent) / 100) * 100) / 100;
+
   const handleAddToCart = async () => {
     try {
       await fetch("/api/cart", {
@@ -93,10 +110,24 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
         <span className="text-[#0759C7] font-semibold truncate max-w-xs">{product.title}</span>
       </div>
 
+      {/* Campaign / Festive Ribbon */}
+      {product.festivalTag && (
+        <div className="bg-gradient-to-r from-[#102C55] via-[#0759C7] to-[#102C55] text-white p-3 px-5 rounded-xl shadow-soft flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#F58220]" />
+            <span className="font-black tracking-wide uppercase">{product.festivalTag}</span>
+            <span className="hidden sm:inline text-blue-200">• Official Distributor Trade Scheme</span>
+          </div>
+          <span className="bg-[#F58220] font-black px-2 py-0.5 rounded text-[10px] uppercase">
+            Limited Wholesale Stock
+          </span>
+        </div>
+      )}
+
       {/* Main Product Showcase */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-soft p-6 sm:p-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column: Image Gallery */}
+          {/* Left Column: Image Gallery & Packaging Details */}
           <div className="lg:col-span-5 space-y-4">
             <div className="aspect-square bg-slate-50 rounded-xl overflow-hidden border border-slate-200 relative">
               <img
@@ -107,6 +138,15 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               <span className="absolute top-3 left-3 bg-[#F58220] text-white text-xs font-black px-2.5 py-1 rounded shadow-sm">
                 WHOLESALE CARTON
               </span>
+
+              {product.hasFreeScheme && (
+                <span className="absolute bottom-3 left-3 bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1">
+                  <Gift className="w-3.5 h-3.5" />
+                  <span>
+                    Buy {product.freeSchemeMinQty} Get {product.freeItemQty || 1} Free
+                  </span>
+                </span>
+              )}
             </div>
 
             {/* Thumbnail Row */}
@@ -128,14 +168,14 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
             {/* Packaging Highlights Box */}
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs space-y-2">
-              <p className="font-bold text-[#102C55] uppercase tracking-wider text-[11px]">Packaging Details</p>
+              <p className="font-bold text-[#102C55] uppercase tracking-wider text-[11px]">Packaging & Batch Specs</p>
               <div className="grid grid-cols-2 gap-2 text-slate-600">
                 <div>
                   <span className="text-slate-400 block text-[10px]">Packaging Type:</span>
                   <span className="font-bold text-slate-800">{product.unitType}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Pack Size:</span>
+                  <span className="text-slate-400 block text-[10px]">Pack Size / Spec:</span>
                   <span className="font-bold text-slate-800">{product.packSize}</span>
                 </div>
                 <div>
@@ -143,14 +183,36 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                   <span className="font-bold text-slate-800">{product.unitsPerCarton} Pieces</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Barcode (EAN):</span>
-                  <span className="font-mono font-bold text-slate-800">{product.barcode || "N/A"}</span>
+                  <span className="text-slate-400 block text-[10px]">Shelf Life / Expiry:</span>
+                  <span className="font-bold text-slate-800">{product.shelfLife || "12 Months from Mfg"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">HSN Customs Code:</span>
+                  <span className="font-mono font-bold text-slate-800">{product.hsnCode || "1902.30"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Batch Code:</span>
+                  <span className="font-mono font-bold text-slate-800">{product.batchNumber || "B-2026/10"}</span>
                 </div>
               </div>
             </div>
+
+            {/* Trade & Return Guarantee Box */}
+            <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl text-xs space-y-1.5 text-emerald-950">
+              <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>Distributor Trade Guarantees</span>
+              </div>
+              <p className="text-[11px] text-emerald-800">
+                <strong>Return & Damage:</strong> {product.returnPolicy || "48-Hour Damage Claim & Sealed Carton Replacement Guarantee."}
+              </p>
+              <p className="text-[11px] text-emerald-800">
+                <strong>Credit Terms:</strong> {product.creditTerms || "Cash on Delivery / Spot QR or Authorized Store Credit."}
+              </p>
+            </div>
           </div>
 
-          {/* Right Column: Title, Pricing, Quantity & Order Card */}
+          {/* Right Column: Title, Offers, Pricing, Quantity & Order Card */}
           <div className="lg:col-span-7 space-y-5">
             {/* Header info */}
             <div>
@@ -158,6 +220,10 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 <span>{product.brandName}</span>
                 <span>•</span>
                 <span className="text-slate-500 font-normal">SKU: {product.sku}</span>
+                <span>•</span>
+                <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.2 rounded">
+                  {product.taxCategory === "VAT_EXEMPT" ? "VAT-Exempt Staple" : "13% VAT Included"}
+                </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-black text-[#102C55] leading-snug">{product.title}</h1>
               <p className="text-xs text-slate-500 mt-1">{product.description}</p>
@@ -182,6 +248,70 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               </div>
             )}
 
+            {/* REAL-MARKET SCHEMES & OFFERS CALLOUTS */}
+            <div className="space-y-2.5">
+              {/* Scheme 1: Buy X Get Y Free (माल फ्रि योजना) */}
+              {product.hasFreeScheme && (
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+                      <Gift className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-black text-emerald-950">
+                        Buy {product.freeSchemeMinQty} Cartons, Get {product.freeItemQty || 1} Free!
+                      </p>
+                      <p className="text-[11px] text-emerald-800">
+                        Free Goods: <strong className="font-semibold">{product.freeItemName}</strong>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {earnedFreeQty > 0 ? (
+                      <span className="font-bold text-xs bg-emerald-600 text-white px-2.5 py-1 rounded-lg">
+                        +{earnedFreeQty} FREE Cartons Earned!
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-emerald-700 bg-white/80 border border-emerald-200 px-2 py-1 rounded">
+                        Add {remainingForFree} more ctn for free item
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Scheme 2: Spot Cash Discount (CD %) */}
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <Percent className="w-4 h-4 text-[#0759C7]" />
+                  <div>
+                    <span className="font-bold text-slate-900">
+                      Spot Payment Cash Discount: {cashDiscountPercent}% Instant CD
+                    </span>
+                    <span className="block text-[11px] text-slate-500">
+                      Applicable on Cash on Delivery or immediate Fonepay QR settlement upon delivery
+                    </span>
+                  </div>
+                </div>
+                <span className="font-mono font-bold text-[#0759C7] text-xs">
+                  Save -{formatNPR(spotDiscountAmount)}
+                </span>
+              </div>
+
+              {/* Scheme 3: Promotional Gift Scheme */}
+              {product.promotionalGift && (
+                <div className="p-3 bg-orange-50/70 border border-orange-200 rounded-xl flex items-center gap-2.5 text-xs text-orange-950">
+                  <Tag className="w-4 h-4 text-[#F58220] flex-shrink-0" />
+                  <div>
+                    <span className="font-bold text-[#F58220] uppercase text-[10px] block tracking-wider">
+                      Retailer Shop Gift Offer:
+                    </span>
+                    <span className="font-semibold">{product.promotionalGift}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Price Box */}
             <div className="p-4 bg-gradient-to-r from-blue-50 via-white to-blue-50/50 rounded-xl border border-blue-200">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
@@ -204,7 +334,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
                 <div className="sm:border-l sm:border-blue-200 sm:pl-4 space-y-1 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Available Warehouse Stock:</span>
+                    <span className="text-slate-500">Warehouse Stock:</span>
                     <span className="font-bold text-emerald-700 font-mono">{product.stockQuantity} Cartons</span>
                   </div>
                   <div className="flex justify-between">
@@ -214,7 +344,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                   <div className="flex justify-between">
                     <span className="text-slate-500">Retail Margin:</span>
                     <span className="font-bold text-[#F58220] font-mono">
-                      +{formatNPR(product.cartonMrp - effectiveCartonPrice)} per carton
+                      +{formatNPR(product.cartonMrp - effectiveCartonPrice)} / carton
                     </span>
                   </div>
                 </div>
@@ -225,8 +355,8 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
             {product.tierPricing && product.tierPricing.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-[#102C55] uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-[#0759C7]" />
-                  <span>Wholesale Volume Tier Discounts</span>
+                  <BadgePercent className="w-3.5 h-3.5 text-[#0759C7]" />
+                  <span>Wholesale Quantity Slabs (अर्डर परिमाण छुट)</span>
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {product.tierPricing.map((tier, idx) => {
@@ -284,12 +414,18 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                   </div>
                 </div>
 
-                <div className="sm:text-right">
+                <div className="sm:text-right space-y-0.5">
                   <span className="text-xs text-slate-500 block">Calculated Total Subtotal:</span>
                   <span className="text-2xl font-black text-[#102C55] font-mono">{formatNPR(totalSubtotal)}</span>
-                  <span className="text-[11px] text-emerald-700 block font-semibold">
+                  <div className="text-[11px] text-emerald-700 font-semibold">
                     Expected Retail Profit: +{formatNPR(totalMarginNPR)}
-                  </span>
+                  </div>
+                  {earnedFreeQty > 0 && (
+                    <div className="text-[11px] font-bold text-emerald-700 flex items-center justify-end gap-1">
+                      <Gift className="w-3 h-3" />
+                      <span>+{earnedFreeQty} Free Carton(s) Included!</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -47,6 +47,13 @@ export async function POST(request: Request) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "") + `-${Math.floor(100 + Math.random() * 900)}`;
 
+    const customTiers = body.tierPricing && Array.isArray(body.tierPricing) && body.tierPricing.length > 0
+      ? body.tierPricing
+      : [
+          { minQty: data.minOrderQty, maxQty: data.minOrderQty * 3, pricePerCarton: data.wholesalePrice },
+          { minQty: data.minOrderQty * 3 + 1, pricePerCarton: Math.round(data.wholesalePrice * 0.96) },
+        ];
+
     const newProduct = marketplaceStore.createProduct({
       id: `prod_${Date.now()}`,
       distributorId,
@@ -72,10 +79,19 @@ export async function POST(request: Request) {
       isApproved: true,
       barcode: data.barcode || "",
       images: [data.imageUrl],
-      tierPricing: [
-        { minQty: data.minOrderQty, maxQty: data.minOrderQty * 3, pricePerCarton: data.wholesalePrice },
-        { minQty: data.minOrderQty * 3 + 1, pricePerCarton: Math.round(data.wholesalePrice * 0.96) },
-      ],
+      tierPricing: customTiers,
+      hasFreeScheme: data.hasFreeScheme,
+      freeSchemeMinQty: data.freeSchemeMinQty,
+      freeItemName: data.freeItemName,
+      freeItemQty: data.freeItemQty,
+      cashDiscountPercent: data.cashDiscountPercent,
+      promotionalGift: data.promotionalGift,
+      festivalTag: data.festivalTag,
+      taxCategory: data.taxCategory,
+      hsnCode: data.hsnCode,
+      shelfLife: data.shelfLife,
+      creditTerms: data.creditTerms,
+      returnPolicy: data.returnPolicy,
     });
 
     return NextResponse.json({ success: true, product: newProduct });

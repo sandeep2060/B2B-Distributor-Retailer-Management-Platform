@@ -97,6 +97,22 @@ export interface MockProduct {
     maxQty?: number;
     pricePerCarton: number;
   }[];
+  // Real-market wholesale schemes & offers
+  hasFreeScheme?: boolean;
+  freeSchemeMinQty?: number;
+  freeItemName?: string;
+  freeItemQty?: number;
+  cashDiscountPercent?: number; // Spot Cash / QR discount %
+  promotionalGift?: string;
+  festivalTag?: string;
+  taxCategory?: "TAXABLE_13" | "VAT_EXEMPT";
+  hsnCode?: string;
+  batchNumber?: string;
+  manufacturingDate?: string;
+  expiryDate?: string;
+  shelfLife?: string;
+  creditTerms?: string;
+  returnPolicy?: string;
 }
 
 export interface MockCartItem {
@@ -117,6 +133,10 @@ export interface MockOrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  isBonusItem?: boolean;
+  freeSchemeNote?: string;
+  spotDiscountPercent?: number;
+  isVatExempt?: boolean;
 }
 
 export interface MockOrder {
@@ -133,6 +153,9 @@ export interface MockOrder {
   paymentMethod: "CASH_ON_DELIVERY" | "ESEWA" | "KHALTI" | "FONEPAY" | "BANK_TRANSFER";
   subtotal: number;
   discountAmount: number;
+  cashDiscountAmount?: number;
+  freeItemsAwarded?: { title: string; quantity: number; unitType: string }[];
+  taxCategoryBreakdown?: { taxable: number; vatExempt: number; vatAmount: number };
   deliveryFee: number;
   taxAmount: number;
   totalAmount: number;
@@ -193,6 +216,9 @@ export interface MockInvoice {
   retailerPhone: string;
   taxableAmount: number;
   vatAmount: number; // 13%
+  vatExemptAmount?: number;
+  cashDiscountAmount?: number;
+  freeItemsAwarded?: { title: string; quantity: number; unitType: string }[];
   grandTotal: number;
   status: "PAID" | "PENDING";
   createdAt: string;
@@ -470,6 +496,19 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 10, maxQty: 29, pricePerCarton: 645 },
       { minQty: 30, pricePerCarton: 630 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 10,
+    freeItemName: "Carton of Wai Wai (30 Pcs)",
+    freeItemQty: 1,
+    cashDiscountPercent: 2.0,
+    promotionalGift: "Free CG Branded Apron & Metal Display Board on 15+ Cartons",
+    festivalTag: "Tihar & Chhath Wholesale Dhamaka",
+    taxCategory: "TAXABLE_13",
+    hsnCode: "1902.30.00",
+    batchNumber: "CG-WW-2026/10A",
+    shelfLife: "9 Months from Mfg Date",
+    creditTerms: "Cash / Fonepay QR (2% CD) or 7-Day Credit for Registered Stores",
+    returnPolicy: "48-Hour Damage Claim & Sealed Carton Replacement Guarantee",
   },
   {
     id: "prod_2",
@@ -504,6 +543,19 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 5, maxQty: 19, pricePerCarton: 935 },
       { minQty: 20, pricePerCarton: 910 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 5,
+    freeItemName: "Chilled 2.25L Coca-Cola Bottle",
+    freeItemQty: 1,
+    cashDiscountPercent: 2.5,
+    promotionalGift: "Free Coca-Cola Official Wall Clock on 10+ Cartons",
+    festivalTag: "Volume Retail Deal",
+    taxCategory: "TAXABLE_13",
+    hsnCode: "2202.10.00",
+    batchNumber: "CC-LAL-2026/09",
+    shelfLife: "6 Months from Mfg",
+    creditTerms: "Cash on Delivery or Instant Fonepay QR",
+    returnPolicy: "Transit Leakage Replacement on Delivery Inspection",
   },
   {
     id: "prod_3",
@@ -537,6 +589,18 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 5, maxQty: 14, pricePerCarton: 2980 },
       { minQty: 15, pricePerCarton: 2900 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 6,
+    freeItemName: "Real 200ml Juice Pack (Tray of 6)",
+    freeItemQty: 1,
+    cashDiscountPercent: 3.0,
+    promotionalGift: "Free Dabur Countertop Dispenser on 12+ Cartons",
+    festivalTag: "Festive Juice Scheme",
+    taxCategory: "TAXABLE_13",
+    hsnCode: "2009.90.00",
+    shelfLife: "12 Months from Mfg",
+    creditTerms: "Cash / Fonepay QR or 15-Day Authorized Credit",
+    returnPolicy: "48-Hour Damage Claim & Replacement",
   },
   {
     id: "prod_4",
@@ -570,6 +634,15 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 5, maxQty: 9, pricePerCarton: 2370 },
       { minQty: 10, pricePerCarton: 2320 },
     ],
+    hasFreeScheme: false,
+    cashDiscountPercent: 1.5,
+    promotionalGift: "Free 1L Oil Dispenser Jug on 5+ Cartons",
+    festivalTag: "Daily Kitchen Staple",
+    taxCategory: "VAT_EXEMPT",
+    hsnCode: "1514.91.00",
+    shelfLife: "12 Months",
+    creditTerms: "Cash on Delivery / Spot QR (1.5% Off)",
+    returnPolicy: "48-Hour Leakage Transit Warranty",
   },
   {
     id: "prod_5",
@@ -602,6 +675,18 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 1, maxQty: 4, pricePerCarton: 2680 },
       { minQty: 5, pricePerCarton: 2590 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 4,
+    freeItemName: "Lifebuoy Handwash 190ml Refill (Pack of 3)",
+    freeItemQty: 1,
+    cashDiscountPercent: 2.0,
+    promotionalGift: "Free Countertop Metal Soap Display Stand on 5+ Cartons",
+    festivalTag: "Hygiene Bulk Deal",
+    taxCategory: "TAXABLE_13",
+    hsnCode: "3401.11.00",
+    shelfLife: "24 Months",
+    creditTerms: "Spot Cash / QR or 7-Day Credit",
+    returnPolicy: "Sealed Carton Transit Warranty",
   },
   {
     id: "prod_6",
@@ -634,6 +719,18 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 1, maxQty: 2, pricePerCarton: 14700 },
       { minQty: 3, pricePerCarton: 14400 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 2,
+    freeItemName: "DDC Pure Cow Butter 200g (Pack of 2)",
+    freeItemQty: 1,
+    cashDiscountPercent: 2.0,
+    promotionalGift: "Free DDC Official Quality Certificate & Brass Diya for Store",
+    festivalTag: "Tihar Bhai Tika Special Ghee Scheme",
+    taxCategory: "VAT_EXEMPT",
+    hsnCode: "0405.90.00",
+    shelfLife: "18 Months from Mfg",
+    creditTerms: "Cash on Delivery / Direct Bank Transfer",
+    returnPolicy: "Factory Sealed Seal Verification",
   },
   {
     id: "prod_7",
@@ -666,6 +763,18 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 2, maxQty: 9, pricePerCarton: 1040 },
       { minQty: 10, pricePerCarton: 990 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 10,
+    freeItemName: "Carton of Parle-G (60 Pcs)",
+    freeItemQty: 1,
+    cashDiscountPercent: 2.0,
+    promotionalGift: "Free Parle-G Tea Stall Acrylic Display Jar Set",
+    festivalTag: "Tea Stall Bulk Scheme",
+    taxCategory: "TAXABLE_13",
+    hsnCode: "1905.31.00",
+    shelfLife: "9 Months from Mfg",
+    creditTerms: "Cash / Fonepay or 7-Day Credit",
+    returnPolicy: "48-Hour Sealed Damage Claim",
   },
   {
     id: "prod_8",
@@ -698,6 +807,18 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 1, maxQty: 3, pricePerCarton: 4100 },
       { minQty: 4, pricePerCarton: 3990 },
     ],
+    hasFreeScheme: true,
+    freeSchemeMinQty: 3,
+    freeItemName: "Surf Excel Detergent Bar (Pack of 6)",
+    freeItemQty: 1,
+    cashDiscountPercent: 2.5,
+    promotionalGift: "Free Heavy Duty 16L Plastic Washing Bucket on 4+ Cartons",
+    festivalTag: "Household Mega Deal",
+    taxCategory: "TAXABLE_13",
+    hsnCode: "3402.20.00",
+    shelfLife: "24 Months",
+    creditTerms: "Spot Cash (2.5% Off) or 15-Day Authorized Store Credit",
+    returnPolicy: "Damage Claim on Dispatch",
   },
 ];
 

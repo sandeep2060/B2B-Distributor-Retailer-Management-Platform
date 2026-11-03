@@ -17,6 +17,9 @@ import {
   AlertCircle,
   QrCode,
   Banknote,
+  Gift,
+  Zap,
+  Sparkles,
 } from "lucide-react";
 
 export default function CheckoutPage() {
@@ -432,64 +435,119 @@ export default function CheckoutPage() {
           </div>
 
           {/* Right Column: Order Confirmation Summary */}
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-6 shadow-soft space-y-5 sticky top-24">
-            <h3 className="font-bold text-base text-[#102C55] pb-3 border-b border-slate-100">
-              Order Review & Settlement
-            </h3>
+          {(() => {
+            const isSpotCashPayment = ["CASH_ON_DELIVERY", "BANK_TRANSFER"].includes(paymentMethod);
+            const spotCashDiscount = isSpotCashPayment ? (cart.totalCashDiscount || 0) : 0;
+            const finalGrandTotal = Math.max(0, cart.totalAmount - spotCashDiscount);
 
-            {/* Line items mini preview */}
-            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-              {cart.items.map((item: any) => (
-                <div key={item.productId} className="flex items-center justify-between text-xs py-1 border-b border-slate-50">
-                  <div className="truncate max-w-[170px]">
-                    <p className="font-bold text-slate-900 truncate">{item.product.title}</p>
-                    <p className="text-[10px] text-slate-500">
-                      {item.quantity} Cartons x {formatNPR(item.unitPrice)}
-                    </p>
-                  </div>
-                  <span className="font-mono font-bold text-slate-800">{formatNPR(item.totalPrice)}</span>
+            return (
+              <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-6 shadow-soft space-y-5 sticky top-24">
+                <h3 className="font-bold text-base text-[#102C55] pb-3 border-b border-slate-100">
+                  Order Review & Settlement
+                </h3>
+
+                {/* Line items mini preview */}
+                <div className="space-y-3 max-h-56 overflow-y-auto pr-1 divide-y divide-slate-50">
+                  {cart.items.map((item: any) => (
+                    <div key={item.productId} className="flex items-center justify-between text-xs py-1.5">
+                      <div className="truncate max-w-[170px]">
+                        <p className="font-bold text-slate-900 truncate">{item.product.title}</p>
+                        <p className="text-[10px] text-slate-500">
+                          {item.quantity} Cartons x {formatNPR(item.unitPrice)}
+                        </p>
+                        {item.earnedFreeQty > 0 && (
+                          <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded mt-0.5">
+                            +{item.earnedFreeQty} Free Bonus
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-mono font-bold text-slate-800">{formatNPR(item.totalPrice)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
 
-            {/* Totals */}
-            <div className="space-y-2 text-xs border-t border-slate-100 pt-3">
-              <div className="flex justify-between text-slate-600">
-                <span>Taxable Amount:</span>
-                <span className="font-mono font-bold text-slate-900">{formatNPR(cart.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>13% VAT:</span>
-                <span className="font-mono font-bold text-slate-900">{formatNPR(cart.taxAmount)}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Delivery:</span>
-                <span className="font-mono font-bold text-slate-900">
-                  {cart.deliveryFee === 0 ? <span className="text-emerald-700">FREE</span> : formatNPR(cart.deliveryFee)}
-                </span>
-              </div>
+                {/* Free Scheme Awards Callout */}
+                {cart.freeSchemeAwards && cart.freeSchemeAwards.length > 0 && (
+                  <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1 text-emerald-800">
+                      <Gift className="w-3.5 h-3.5 text-emerald-700" />
+                      Free Scheme Goods Included:
+                    </p>
+                    {cart.freeSchemeAwards.map((s: any, idx: number) => (
+                      <div key={idx} className="flex justify-between font-medium">
+                        <span className="truncate max-w-[180px]">+{s.quantity} Ctn {s.title}</span>
+                        <span className="font-bold text-emerald-700">FREE</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-              <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-baseline">
-                <span className="text-sm font-black text-[#102C55]">Grand Total:</span>
-                <span className="text-xl font-black text-[#0759C7] font-mono">{formatNPR(cart.totalAmount)}</span>
+                {/* Totals */}
+                <div className="space-y-2 text-xs border-t border-slate-100 pt-3">
+                  {cart.taxableSubtotal > 0 && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Taxable Goods:</span>
+                      <span className="font-mono font-bold text-slate-900">{formatNPR(cart.taxableSubtotal)}</span>
+                    </div>
+                  )}
+
+                  {cart.vatExemptSubtotal > 0 && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>VAT-Exempt Goods:</span>
+                      <span className="font-mono font-bold text-slate-900">{formatNPR(cart.vatExemptSubtotal)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-slate-600">
+                    <span>13% VAT (IRD):</span>
+                    <span className="font-mono font-bold text-slate-900">{formatNPR(cart.taxAmount)}</span>
+                  </div>
+
+                  <div className="flex justify-between text-slate-600">
+                    <span>Delivery:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {cart.deliveryFee === 0 ? <span className="text-emerald-700">FREE</span> : formatNPR(cart.deliveryFee)}
+                    </span>
+                  </div>
+
+                  {/* Spot Cash Discount Line */}
+                  {spotCashDiscount > 0 ? (
+                    <div className="flex justify-between text-emerald-700 font-bold bg-emerald-50/70 p-1.5 rounded-lg border border-emerald-200">
+                      <span className="flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-500" />
+                        Spot Cash Discount (CD):
+                      </span>
+                      <span className="font-mono">-{formatNPR(spotCashDiscount)}</span>
+                    </div>
+                  ) : cart.totalCashDiscount > 0 ? (
+                    <div className="text-[10px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-200">
+                      💡 Select Cash on Delivery or Bank Transfer to save <strong>{formatNPR(cart.totalCashDiscount)}</strong>!
+                    </div>
+                  ) : null}
+
+                  <div className="pt-3 border-t-2 border-slate-900 flex justify-between items-baseline">
+                    <span className="text-sm font-black text-[#102C55]">Payable Total:</span>
+                    <span className="text-xl font-black text-[#0759C7] font-mono">{formatNPR(finalGrandTotal)}</span>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="orange"
+                  size="lg"
+                  isLoading={submitting}
+                  className="w-full font-bold text-sm h-12 shadow-md"
+                >
+                  {submitting ? "Confirming Order..." : "Confirm & Place Wholesale Order"}
+                </Button>
+
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 flex-shrink-0 text-emerald-700" />
+                  <span>Official IRD VAT tax invoice will be generated upon confirmation.</span>
+                </div>
               </div>
-            </div>
-
-            <Button
-              type="submit"
-              variant="orange"
-              size="lg"
-              isLoading={submitting}
-              className="w-full font-bold text-sm h-12 shadow-md"
-            >
-              {submitting ? "Confirming Order..." : "Confirm & Place Wholesale Order"}
-            </Button>
-
-            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-[11px] text-emerald-800 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 flex-shrink-0 text-emerald-700" />
-              <span>Official IRD VAT tax invoice will be generated upon confirmation.</span>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       </form>
     </div>

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { MockProduct } from "@/lib/db/mock-data";
 import { formatNPR } from "@/lib/utils/formatters";
 import { Button } from "../ui/button";
-import { ShoppingCart, Check, ShieldCheck, Building2, Layers } from "lucide-react";
+import { ShoppingCart, Check, ShieldCheck, Building2, Layers, Gift, Percent } from "lucide-react";
 
 interface ProductCardProps {
   product: MockProduct;
@@ -53,6 +53,32 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
               SAVE {discountPercent}%
             </span>
           )}
+
+          {/* Scheme Badges */}
+          <div className="absolute top-8 left-2.5 flex flex-col gap-1 items-start pointer-events-none">
+            {product.festivalTag && (
+              <span className="bg-rose-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                🎉 {product.festivalTag}
+              </span>
+            )}
+            {product.hasFreeScheme && (
+              <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1">
+                <Gift className="w-2.5 h-2.5" />
+                <span>{product.freeSchemeMinQty}+{product.freeItemQty || 1} FREE</span>
+              </span>
+            )}
+            {Boolean(product.cashDiscountPercent && product.cashDiscountPercent > 0) && (
+              <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+                <Percent className="w-2.5 h-2.5" />
+                <span>{product.cashDiscountPercent}% SPOT CD</span>
+              </span>
+            )}
+            {product.promotionalGift && (
+              <span className="bg-purple-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                🎁 +GIFT
+              </span>
+            )}
+          </div>
 
           {/* MOQ Badge */}
           <span className="absolute top-2.5 right-2.5 bg-[#102C55]/90 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">

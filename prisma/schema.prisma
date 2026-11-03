@@ -268,6 +268,22 @@ model Product {
   isFeatured      Boolean        @default(false)
   isApproved      Boolean        @default(true)
   barcode         String?
+  // Real-market wholesale schemes & offers
+  hasFreeScheme   Boolean        @default(false)
+  freeSchemeMinQty Int?          @default(10)
+  freeItemName    String?
+  freeItemQty     Int?           @default(1)
+  cashDiscountPercent Decimal    @default(2.00) @db.Decimal(5, 2)
+  promotionalGift String?
+  festivalTag     String?
+  taxCategory     String         @default("TAXABLE_13")
+  hsnCode         String?
+  batchNumber     String?
+  manufacturingDate DateTime?
+  expiryDate      DateTime?
+  shelfLife       String?
+  creditTerms     String?
+  returnPolicy    String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
