@@ -7,6 +7,7 @@ import { formatNPR, formatDate } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils/cn";
 import {
   ShoppingCart,
   Eye,
@@ -21,6 +22,9 @@ import {
   Receipt,
   Sparkles,
   AlertCircle,
+  CalendarClock,
+  AlertTriangle,
+  Filter,
 } from "lucide-react";
 
 export default function DistributorOrdersPage() {
@@ -45,6 +49,13 @@ export default function DistributorOrdersPage() {
   const [bulkDriverPhone, setBulkDriverPhone] = useState("9841009988");
   const [bulkVehicleNo, setBulkVehicleNo] = useState("Ba 2 Kha 4490");
 
+  // Date & Pay Date Filter State
+  const [dateFilterPreset, setDateFilterPreset] = useState<
+    "ALL" | "TODAY" | "WEEK" | "15_DAYS" | "1_MONTH" | "CUSTOM" | "OVERDUE_ONLY"
+  >("ALL");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+
   const tabs = [
     { id: "ALL", label: "All Orders", count: orders.length },
     { id: "PENDING", label: "Pending", count: orders.filter((o) => o.status === "PENDING").length },
@@ -67,10 +78,43 @@ export default function DistributorOrdersPage() {
   ];
 
   const filtered = orders.filter((o) => {
-    if (activeTab === "ALL") return true;
-    if (activeTab === "PROCESSING") return o.status === "CONFIRMED" || o.status === "PROCESSING";
-    if (activeTab === "ON_DELIVERY") return o.status === "DISPATCHED" && o.deliveryDate === todayStr;
-    return o.status === activeTab;
+    // Status tab filter
+    if (activeTab === "PROCESSING" && o.status !== "CONFIRMED" && o.status !== "PROCESSING") return false;
+    if (activeTab === "ON_DELIVERY" && (o.status !== "DISPATCHED" || o.deliveryDate !== todayStr)) return false;
+    if (activeTab !== "ALL" && activeTab !== "PROCESSING" && activeTab !== "ON_DELIVERY" && o.status !== activeTab) return false;
+
+    // Date & Pay Date Preset filter
+    const isPayDateOut = Boolean(o.paymentDueDate && o.paymentDueDate < todayStr && o.paymentStatus !== "PAID");
+    if (dateFilterPreset === "OVERDUE_ONLY") return isPayDateOut;
+
+    if (dateFilterPreset === "TODAY") {
+      const orderDate = o.createdAt.split("T")[0];
+      return orderDate === todayStr || o.deliveryDate === todayStr || o.paymentDueDate === todayStr;
+    }
+    if (dateFilterPreset === "WEEK") {
+      const pastWeek = new Date();
+      pastWeek.setDate(pastWeek.getDate() - 7);
+      const pastWeekStr = pastWeek.toISOString().split("T")[0];
+      return o.createdAt >= pastWeekStr || (Boolean(o.deliveryDate) && o.deliveryDate! >= pastWeekStr);
+    }
+    if (dateFilterPreset === "15_DAYS") {
+      const past15 = new Date();
+      past15.setDate(past15.getDate() - 15);
+      const past15Str = past15.toISOString().split("T")[0];
+      return o.createdAt >= past15Str || (Boolean(o.deliveryDate) && o.deliveryDate! >= past15Str);
+    }
+    if (dateFilterPreset === "1_MONTH") {
+      const pastMonth = new Date();
+      pastMonth.setDate(pastMonth.getDate() - 30);
+      const pastMonthStr = pastMonth.toISOString().split("T")[0];
+      return o.createdAt >= pastMonthStr || (Boolean(o.deliveryDate) && o.deliveryDate! >= pastMonthStr);
+    }
+    if (dateFilterPreset === "CUSTOM") {
+      if (customStartDate && o.createdAt.split("T")[0] < customStartDate) return false;
+      if (customEndDate && o.createdAt.split("T")[0] > customEndDate) return false;
+    }
+
+    return true;
   });
 
   // Toggle selection
@@ -196,6 +240,75 @@ export default function DistributorOrdersPage() {
             </button>
           ))}
         </div>
+
+        {/* Date & Pay Date Preset Filter Bar */}
+        <div className="pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <CalendarClock className="w-3.5 h-3.5 text-[#0759C7]" />
+              <span>Date / Pay Filter:</span>
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: "ALL" as const, label: "All" },
+                { id: "TODAY" as const, label: "Today (आज)" },
+                { id: "WEEK" as const, label: "Week (७ दिन)" },
+                { id: "15_DAYS" as const, label: "15 Days (१५ दिन)" },
+                { id: "1_MONTH" as const, label: "1 Month (१ महिना)" },
+                { id: "CUSTOM" as const, label: "Custom Date" },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setDateFilterPreset(p.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
+                    dateFilterPreset === p.id
+                      ? "bg-[#102C55] text-white shadow-xs font-bold"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+
+              {/* Red indicator quick filter button for overdue orders */}
+              {orders.some((o) => Boolean(o.paymentDueDate && o.paymentDueDate < todayStr && o.paymentStatus !== "PAID")) && (
+                <button
+                  onClick={() => setDateFilterPreset(dateFilterPreset === "OVERDUE_ONLY" ? "ALL" : "OVERDUE_ONLY")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-black transition-all flex items-center gap-1 ml-1",
+                    dateFilterPreset === "OVERDUE_ONLY"
+                      ? "bg-rose-600 text-white shadow-xs animate-pulse ring-2 ring-rose-400"
+                      : "bg-rose-50 text-rose-700 border border-rose-300 hover:bg-rose-100"
+                  )}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                  <span>🚨 Pay Date Out ({orders.filter((o) => Boolean(o.paymentDueDate && o.paymentDueDate < todayStr && o.paymentStatus !== "PAID")).length})</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Custom Date Pickers */}
+          {dateFilterPreset === "CUSTOM" && (
+            <div className="flex items-center gap-2 bg-slate-50 p-1.5 px-3 rounded-lg border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500">From:</span>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="h-7 px-2 rounded border border-slate-300 font-mono text-[11px]"
+              />
+              <span className="text-[11px] font-bold text-slate-500">To:</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="h-7 px-2 rounded border border-slate-300 font-mono text-[11px]"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Floating / Sticky Bulk Dispatch Action Bar (when orders selected) */}
@@ -259,7 +372,7 @@ export default function DistributorOrdersPage() {
                 <th className="py-3 px-4">Retailer Store</th>
                 <th className="py-3 px-4">Delivery Date / Status</th>
                 <th className="py-3 px-4">Order Date</th>
-                <th className="py-3 px-4">Gross Total</th>
+                <th className="py-3 px-4">Payable Amount</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Process</th>
               </tr>
@@ -270,12 +383,19 @@ export default function DistributorOrdersPage() {
                 const isToday = o.deliveryDate === todayStr;
                 const isCancelled = o.status === "CANCELLED";
                 const isDelivered = o.status === "DELIVERED";
+                const isPayDateOut = Boolean(
+                  o.paymentDueDate && o.paymentDueDate < todayStr && o.paymentStatus !== "PAID"
+                );
 
                 return (
                   <tr
                     key={o.id}
                     className={`transition-colors ${
-                      isSelected ? "bg-blue-50/40" : "hover:bg-slate-50/70"
+                      isPayDateOut
+                        ? "bg-rose-50/50 hover:bg-rose-50"
+                        : isSelected
+                        ? "bg-blue-50/40"
+                        : "hover:bg-slate-50/70"
                     }`}
                   >
                     {/* Checkbox */}
@@ -342,9 +462,25 @@ export default function DistributorOrdersPage() {
                     {/* Order Date */}
                     <td className="py-3.5 px-4 text-slate-500">{formatDate(o.createdAt)}</td>
 
-                    {/* Gross Total */}
+                    {/* Payable Amount & Red Indicator */}
                     <td className="py-3.5 px-4 font-mono font-bold text-slate-900">
-                      {formatNPR(o.totalAmount)}
+                      <div className={cn(isPayDateOut && "text-rose-600 font-black")}>
+                        {formatNPR(o.payableAmount || o.totalAmount)}
+                      </div>
+                      {isPayDateOut ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white mt-1 shadow-xs animate-pulse">
+                          <AlertTriangle className="w-3 h-3 text-white" />
+                          <span>OUT: {o.paymentDueDate}</span>
+                        </span>
+                      ) : o.paymentStatus === "PAID" ? (
+                        <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 mt-0.5">
+                          ✓ Paid
+                        </span>
+                      ) : (
+                        <span className="inline-block text-[10px] text-slate-400 font-normal mt-0.5">
+                          Due: {o.paymentDueDate || "15 Days"}
+                        </span>
+                      )}
                     </td>
 
                     {/* Status Badge */}

@@ -6,7 +6,20 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   try {
     const session = await requireAuth(["SUPER_ADMIN", "DISTRIBUTOR"]);
     const body = await request.json();
-    const { action, itemId, cancelReason, selectedItemIds, invoiceNumber, deliveryDate, timeSlot, deliveryPerson, status } = body;
+    const {
+      action,
+      itemId,
+      cancelReason,
+      selectedItemIds,
+      invoiceNumber,
+      deliveryDate,
+      timeSlot,
+      deliveryPerson,
+      status,
+      paymentDueDate,
+      paymentStatus,
+      payableAmount,
+    } = body;
 
     const orderId = params.id;
     const order = marketplaceStore.getOrderById(orderId);
@@ -81,6 +94,21 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     // 6. Direct status transition
     if (status) {
       const updated = marketplaceStore.updateOrderStatus(order.id, status);
+      return NextResponse.json({ success: true, order: updated });
+    }
+
+    // 7. Update Payment Due Date, Payable Amount & Payment Status
+    if (
+      action === "UPDATE_PAYMENT" ||
+      paymentDueDate !== undefined ||
+      paymentStatus !== undefined ||
+      payableAmount !== undefined
+    ) {
+      const updated = marketplaceStore.updateOrderPayment(order.id, {
+        paymentDueDate,
+        paymentStatus,
+        payableAmount,
+      });
       return NextResponse.json({ success: true, order: updated });
     }
 

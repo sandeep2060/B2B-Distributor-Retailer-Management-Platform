@@ -210,6 +210,9 @@ export interface MockOrder {
   // Delivery Scheduling
   deliveryDate?: string;
   deliveryTimeSlot?: string;
+  // Payment Term, Due Date & Payable Amount
+  paymentDueDate?: string; // YYYY-MM-DD
+  payableAmount?: number; // Total amount payable by retailer
   // Invoicing and Confirmation Notice
   isInvoiced?: boolean;
   invoiceId?: string;
@@ -1079,6 +1082,8 @@ export const INITIAL_ORDERS: MockOrder[] = [
     status: "PROCESSING",
     paymentStatus: "PENDING",
     paymentMethod: "BANK_TRANSFER",
+    paymentDueDate: "2026-11-01", // Past date (Pay date is out -> Triggers Red Indicator)
+    payableAmount: 18712.8,
     subtotal: 16860,
     discountAmount: 300,
     deliveryFee: 0,

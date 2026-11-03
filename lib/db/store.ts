@@ -942,6 +942,34 @@ class MarketplaceStore {
     return updated;
   }
 
+  updateOrderPayment(
+    orderId: string,
+    updates: {
+      paymentDueDate?: string;
+      paymentStatus?: "PENDING" | "PAID" | "FAILED" | "REFUNDED";
+      payableAmount?: number;
+    }
+  ): MockOrder | null {
+    const order = this.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order) return null;
+
+    if (updates.paymentDueDate !== undefined) {
+      order.paymentDueDate = updates.paymentDueDate;
+    }
+    if (updates.paymentStatus !== undefined) {
+      order.paymentStatus = updates.paymentStatus;
+      const invoice = this.invoices.find((i) => i.orderId === order.id);
+      if (invoice) {
+        invoice.status = updates.paymentStatus === "PAID" ? "PAID" : "PENDING";
+      }
+    }
+    if (updates.payableAmount !== undefined) {
+      order.payableAmount = updates.payableAmount;
+    }
+
+    return order;
+  }
+
   // --- OFFERS ---
   getOffers(distributorId?: string): MockOffer[] {
     if (distributorId) {

@@ -8,6 +8,7 @@ import { formatNPR, formatDate } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils/cn";
 import {
   ArrowLeft,
   Truck,
@@ -28,6 +29,9 @@ import {
   Square,
   Receipt,
   UserCheck,
+  CalendarClock,
+  AlertCircle,
+  Check,
 } from "lucide-react";
 
 export default function DistributorOrderDetailPage({ params }: { params: { id: string } }) {
@@ -79,6 +83,87 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
     setInvoiceErrorMessage("");
   };
 
+  // Pay Date & Payable Amount Filter State
+  const [payDatePreset, setPayDatePreset] = useState<"TODAY" | "WEEK" | "15_DAYS" | "1_MONTH" | "CUSTOM">(() => {
+    if (!order?.paymentDueDate) return "15_DAYS";
+    if (order.paymentDueDate === todayStr) return "TODAY";
+    return "CUSTOM";
+  });
+  const [paymentDueDateInput, setPaymentDueDateInput] = useState<string>(
+    order?.paymentDueDate || "2026-11-01"
+  );
+  const [paymentStatusState, setPaymentStatusState] = useState<"PENDING" | "PAID" | "FAILED" | "REFUNDED">(
+    order?.paymentStatus || "PENDING"
+  );
+
+  // Check if Pay Date is Out (Overdue)
+  const isPayDateOut = useMemo(() => {
+    if (paymentStatusState === "PAID") return false;
+    if (!paymentDueDateInput) return false;
+    return paymentDueDateInput < todayStr;
+  }, [paymentDueDateInput, paymentStatusState, todayStr]);
+
+  const daysDiff = useMemo(() => {
+    if (!paymentDueDateInput) return 0;
+    const due = new Date(paymentDueDateInput).getTime();
+    const now = new Date(todayStr).getTime();
+    return Math.round((due - now) / (1000 * 60 * 60 * 24));
+  }, [paymentDueDateInput, todayStr]);
+
+  const daysOverdue = Math.max(0, -daysDiff);
+
+  const handleSelectPayDatePreset = (preset: "TODAY" | "WEEK" | "15_DAYS" | "1_MONTH" | "CUSTOM") => {
+    setPayDatePreset(preset);
+    if (preset === "CUSTOM") {
+      return;
+    }
+    const targetDate = new Date();
+    if (preset === "TODAY") {
+      // today
+    } else if (preset === "WEEK") {
+      targetDate.setDate(targetDate.getDate() + 7);
+    } else if (preset === "15_DAYS") {
+      targetDate.setDate(targetDate.getDate() + 15);
+    } else if (preset === "1_MONTH") {
+      targetDate.setDate(targetDate.getDate() + 30);
+    }
+    const dateStr = targetDate.toISOString().split("T")[0];
+    setPaymentDueDateInput(dateStr);
+    handleUpdatePayment(dateStr, paymentStatusState);
+  };
+
+  const handleUpdatePayment = async (
+    newDueDate: string,
+    newStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED"
+  ) => {
+    if (!order) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_PAYMENT",
+          paymentDueDate: newDueDate,
+          paymentStatus: newStatus,
+          payableAmount: payableAmountValue,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.order) {
+        setOrder({ ...data.order });
+        if (data.order.paymentDueDate) setPaymentDueDateInput(data.order.paymentDueDate);
+        if (data.order.paymentStatus) setPaymentStatusState(data.order.paymentStatus);
+        setActionSuccessMsg(`Payable status updated: Due date ${newDueDate} • Status ${newStatus}`);
+        setTimeout(() => setActionSuccessMsg(""), 3500);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (!order) {
     notFound();
   }
@@ -86,6 +171,14 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
   // Active (non-cancelled) and Cancelled items
   const activeItems = useMemo(() => order.items.filter((i) => !i.isCancelled), [order.items]);
   const cancelledItems = useMemo(() => order.items.filter((i) => i.isCancelled), [order.items]);
+
+  // Payable Amount (calculated from active items + VAT or order.payableAmount)
+  const payableAmountValue = useMemo(() => {
+    if (order?.payableAmount) return order.payableAmount;
+    const activeSub = activeItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const vat = Math.round(activeItems.filter((i) => !i.isVatExempt).reduce((sum, i) => sum + i.totalPrice, 0) * 0.13 * 100) / 100;
+    return activeSub + vat;
+  }, [order?.payableAmount, activeItems]);
 
   // Selected items calculation for invoice
   const selectedItems = useMemo(
@@ -396,6 +489,286 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
         </div>
       </div>
 
+      {/* =========================================================================
+          PAY DATE FILTER & PAYABLE AMOUNT STATUS SECTION
+          ========================================================================= */}
+      <div
+        className={cn(
+          "bg-white rounded-2xl border p-5 shadow-soft transition-all space-y-4",
+          isPayDateOut
+            ? "border-rose-400 bg-rose-50/30 ring-2 ring-rose-500/20"
+            : "border-slate-200"
+        )}
+      >
+        {/* Header with Title and Presets Filter */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white shadow-xs",
+                  isPayDateOut ? "bg-rose-600 animate-pulse" : "bg-[#0759C7]"
+                )}
+              >
+                <CalendarClock className="w-4 h-4" />
+              </span>
+              <div>
+                <h3 className="font-black text-sm text-[#102C55] flex items-center gap-2">
+                  <span>Pay Date & Credit Filter (भुक्तानी म्याद र स्थिति)</span>
+                  {isPayDateOut && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-rose-600 text-white animate-pulse shadow-xs">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>RED INDICATOR: PAY DATE OUT (म्याद नाघेको)</span>
+                    </span>
+                  )}
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  Select payment maturity terms: Today, 7 days, 15 days, 1 month, or custom date
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Timeframe Presets Filter Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs">
+            <span className="text-[10px] font-bold text-slate-500 px-1 uppercase tracking-wider hidden sm:inline-block">
+              Filter:
+            </span>
+
+            {[
+              { id: "TODAY" as const, label: "Today (आज)" },
+              { id: "WEEK" as const, label: "Week (७ दिन)" },
+              { id: "15_DAYS" as const, label: "15 Days (१५ दिन)" },
+              { id: "1_MONTH" as const, label: "1 Month (१ महिना)" },
+              { id: "CUSTOM" as const, label: "Custom Date (अनुकूलित)" },
+            ].map((preset) => {
+              const isSelected = payDatePreset === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleSelectPayDatePreset(preset.id)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1",
+                    isSelected
+                      ? isPayDateOut
+                        ? "bg-rose-600 text-white shadow-xs"
+                        : "bg-[#0759C7] text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
+                  )}
+                >
+                  <span>{preset.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Custom Date Picker Bar (shown when CUSTOM is selected) */}
+        {payDatePreset === "CUSTOM" && (
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <label className="font-bold text-slate-700">Set Custom Pay Date (भुक्तानी मिति):</label>
+              <input
+                type="date"
+                value={paymentDueDateInput}
+                onChange={(e) => {
+                  setPaymentDueDateInput(e.target.value);
+                  handleUpdatePayment(e.target.value, paymentStatusState);
+                }}
+                className="h-8 px-2.5 rounded-lg border border-slate-300 font-mono font-bold text-xs text-slate-800 focus:ring-2 focus:ring-[#0759C7]"
+              />
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-slate-500">
+              <span>Tip: Set a past date (e.g. 2026-10-31) to test the red overdue indicator</span>
+            </div>
+          </div>
+        )}
+
+        {/* Status & Payable Amount Dashboard Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Card 1: Payable Amount */}
+          <div
+            className={cn(
+              "p-4 rounded-xl border transition-all flex flex-col justify-between",
+              isPayDateOut
+                ? "bg-rose-50 border-rose-300 text-rose-900 ring-1 ring-rose-400"
+                : "bg-slate-50 border-slate-200 text-slate-900"
+            )}
+          >
+            <div>
+              <span className="text-[11px] uppercase font-bold text-slate-500 block tracking-wider">
+                Payable Amount (भुक्तानी योग्य रकम)
+              </span>
+              <p
+                className={cn(
+                  "text-2xl font-black font-mono tracking-tight mt-1",
+                  isPayDateOut ? "text-rose-600" : "text-[#102C55]"
+                )}
+              >
+                {formatNPR(payableAmountValue)}
+              </p>
+            </div>
+            <p className="text-[10px] text-slate-500 mt-2">
+              Active items total + 13% IRD VAT (Total order balance)
+            </p>
+          </div>
+
+          {/* Card 2: Pay Date & Overdue Indicator */}
+          <div
+            className={cn(
+              "p-4 rounded-xl border transition-all flex flex-col justify-between",
+              isPayDateOut
+                ? "bg-rose-50 border-rose-300 text-rose-900 ring-1 ring-rose-400"
+                : "bg-slate-50 border-slate-200 text-slate-900"
+            )}
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                  Pay Date (म्याद मिति)
+                </span>
+                {isPayDateOut ? (
+                  <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-600 text-white animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                    <span>RED: OUT OF DATE</span>
+                  </span>
+                ) : paymentStatusState === "PAID" ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    PAID
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-[#0759C7]">
+                    ACTIVE CREDIT
+                  </span>
+                )}
+              </div>
+
+              <p className="text-base font-bold font-mono text-slate-900 mt-1">
+                {paymentDueDateInput || "Not Specified"}
+              </p>
+            </div>
+
+            {/* Overdue / On-Schedule Status Line */}
+            <div className="mt-2 text-xs">
+              {paymentStatusState === "PAID" ? (
+                <span className="text-emerald-700 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Invoice settled in full</span>
+                </span>
+              ) : isPayDateOut ? (
+                <span className="text-rose-700 font-black flex items-center gap-1 text-xs">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 animate-bounce" />
+                  <span>Overdue by {daysOverdue} {daysOverdue === 1 ? "day" : "days"}! (Pay date is OUT)</span>
+                </span>
+              ) : daysDiff === 0 ? (
+                <span className="text-amber-800 font-bold flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Payment due TODAY!</span>
+                </span>
+              ) : (
+                <span className="text-emerald-700 font-semibold flex items-center gap-1 text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>On Schedule • {daysDiff} days remaining</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Settlement Status & 1-Click Action */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
+            <div>
+              <span className="text-[11px] uppercase font-bold text-slate-500 block tracking-wider">
+                Payment Status (स्थिति)
+              </span>
+              <div className="mt-1 flex items-center gap-2">
+                <span
+                  className={cn(
+                    "text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5",
+                    paymentStatusState === "PAID"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : isPayDateOut
+                      ? "bg-rose-100 text-rose-800 border border-rose-300 font-black"
+                      : "bg-amber-100 text-amber-800 border border-amber-300"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-2 h-2 rounded-full",
+                      paymentStatusState === "PAID"
+                        ? "bg-emerald-600"
+                        : isPayDateOut
+                        ? "bg-rose-600 animate-ping"
+                        : "bg-amber-600"
+                    )}
+                  />
+                  <span>
+                    {paymentStatusState === "PAID"
+                      ? "PAID IN FULL (चुक्ता)"
+                      : isPayDateOut
+                      ? "OVERDUE (म्याद नाघेको)"
+                      : "PAYMENT PENDING (बाँकी)"}
+                  </span>
+                </span>
+              </div>
+            </div>
+
+            {/* Quick 1-click Payment Status Toggle */}
+            <div className="pt-2 flex items-center gap-2">
+              {paymentStatusState === "PAID" ? (
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={() => handleUpdatePayment(paymentDueDateInput, "PENDING")}
+                  className="text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-slate-100 transition-colors"
+                >
+                  Revert to Pending
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={() => handleUpdatePayment(paymentDueDateInput, "PAID")}
+                  className="text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-xs"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Mark as Paid (रकम प्राप्त)</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Red Alert Banner if Pay Date is Out */}
+        {isPayDateOut && (
+          <div className="p-3.5 rounded-xl bg-rose-100/90 border border-rose-300 text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 font-bold">
+                !
+              </span>
+              <div>
+                <p className="font-bold text-rose-950">
+                  RED ALERT: Pay Date Expired! Retailer credit term has passed by {daysOverdue} {daysOverdue === 1 ? "day" : "days"}.
+                </p>
+                <p className="text-[11px] text-rose-800">
+                  Payable amount of <strong>{formatNPR(payableAmountValue)}</strong> is overdue. Please contact {order.retailerShop} ({order.deliveryAddress.phone}) for settlement.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <a
+                href={`tel:${order.deliveryAddress.phone}`}
+                className="px-3 py-1.5 rounded-lg bg-rose-600 text-white font-bold text-xs hover:bg-rose-700 transition-colors flex items-center gap-1 shadow-xs"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Call Retailer</span>
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Confirmation & Notice Alert to Retailer (तपाईंको अर्डर स्वीकृत भयो र इनभ्वाइस जारी गरियो) */}
       {order.confirmationNotice ? (
         <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 shadow-xs space-y-1.5">
@@ -517,6 +890,50 @@ export default function DistributorOrderDetailPage({ params }: { params: { id: s
             <div className="flex justify-between pt-1 border-t border-slate-200 text-sm font-black text-emerald-700">
               <span>Net Distributor Payout:</span>
               <span className="font-mono">{formatNPR(order.netDistributorEarnings)}</span>
+            </div>
+
+            <div
+              className={cn(
+                "flex justify-between items-center p-2 rounded-lg border mt-2",
+                isPayDateOut
+                  ? "bg-rose-50 border-rose-300 text-rose-900"
+                  : "bg-slate-50 border-slate-200"
+              )}
+            >
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">
+                  Payable Amount (तिर्नुपर्ने रकम):
+                </span>
+                <span
+                  className={cn(
+                    "font-mono font-black text-sm",
+                    isPayDateOut ? "text-rose-600" : "text-[#102C55]"
+                  )}
+                >
+                  {formatNPR(payableAmountValue)}
+                </span>
+              </div>
+              <div className="text-right">
+                <span
+                  className={cn(
+                    "text-[10px] font-bold px-2 py-0.5 rounded-full inline-block",
+                    paymentStatusState === "PAID"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : isPayDateOut
+                      ? "bg-rose-600 text-white animate-pulse"
+                      : "bg-amber-100 text-amber-800"
+                  )}
+                >
+                  {paymentStatusState === "PAID"
+                    ? "PAID"
+                    : isPayDateOut
+                    ? `🚨 OVERDUE (${daysOverdue}d)`
+                    : "PENDING"}
+                </span>
+                <span className="text-[10px] text-slate-500 block font-mono">
+                  Due: {paymentDueDateInput}
+                </span>
+              </div>
             </div>
           </div>
         </div>
