@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -35,6 +35,17 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole = "RETAILER", cartCo
   const [searchQuery, setSearchQuery] = useState("");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Close mobile side menu on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,7 +302,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole = "RETAILER", cartCo
         {isMobileMenuOpen && (
           <div
             onClick={() => setIsMobileMenuOpen(false)}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-300 md:hidden"
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs transition-opacity duration-300 md:hidden"
             aria-hidden="true"
           />
         )}
@@ -381,7 +392,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole = "RETAILER", cartCo
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>Volume Deals & Schemes</span>
                   </span>
-                  <span className="text-[10px] bg-[#F58220] text-white px-1.5 py-0.2 rounded font-bold">HOT</span>
+                  <span className="text-[10px] bg-[#F58220] text-white px-1.5 py-0.5 rounded font-bold">HOT</span>
                 </Link>
                 <Link
                   href="/categories/beverages"
