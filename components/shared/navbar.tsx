@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { POPULAR_LOCATIONS } from "@/lib/services/nepal-data";
+import { cn } from "@/lib/utils/cn";
 
 interface NavbarProps {
   currentRole?: string;
@@ -278,38 +279,174 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole = "RETAILER", cartCo
             {/* Mobile menu toggle */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-lg"
+              className="md:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Toggle sliding side menu"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile search & quick bar */}
+        {/* Sliding Mobile Side Menu Drawer & Backdrop */}
         {isMobileMenuOpen && (
-          <div className="md:hidden mt-3 pt-3 border-t border-slate-200 space-y-3 pb-2">
-            <div className="flex items-center justify-between text-xs font-semibold px-1">
-              <span className="text-slate-500">Location:</span>
-              <span className="text-[#0759C7]">{selectedLocation}</span>
+          <div
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity duration-300 md:hidden"
+            aria-hidden="true"
+          />
+        )}
+
+        <div
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-72 bg-white shadow-2xl flex flex-col justify-between overflow-y-auto transition-transform duration-300 ease-in-out md:hidden",
+            isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="p-4 space-y-4">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#0759C7] flex items-center justify-center text-white font-black text-sm shadow-md">
+                  B2B
+                </div>
+                <div>
+                  <span className="font-black text-[#102C55]">B2B Deal</span>
+                  <span className="text-[10px] font-bold text-[#F58220] uppercase ml-1">Nepal</span>
+                </div>
+              </Link>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <Link
-                href="/distributor/dashboard"
-                className="flex items-center justify-center gap-1.5 p-2 bg-blue-50 text-[#0759C7] rounded-lg font-bold"
-              >
-                <Building2 className="w-4 h-4" />
-                Distributor Portal
-              </Link>
-              <Link
-                href="/admin/dashboard"
-                className="flex items-center justify-center gap-1.5 p-2 bg-slate-100 text-slate-800 rounded-lg font-bold"
-              >
-                <ShieldAlert className="w-4 h-4" />
-                Admin Dashboard
-              </Link>
+
+            {/* Location Selector */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                Delivery Hub Location:
+              </span>
+              <div className="flex items-center gap-1.5 text-[#0759C7] font-bold">
+                <MapPin className="w-4 h-4 text-[#0759C7]" />
+                <span>{selectedLocation}</span>
+              </div>
+            </div>
+
+            {/* Portal Switcher */}
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block px-1 tracking-wider">
+                Portals & Role Control
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <Link
+                  href="/distributor/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 p-2.5 bg-blue-50 text-[#0759C7] rounded-xl font-bold border border-blue-100 shadow-xs hover:bg-blue-100 transition-colors"
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>Distributor</span>
+                </Link>
+                <Link
+                  href="/admin/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 p-2.5 bg-slate-100 text-slate-800 rounded-xl font-bold border border-slate-200 shadow-xs hover:bg-slate-200 transition-colors"
+                >
+                  <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <span>Admin</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Navigation Categories */}
+            <div className="space-y-1 pt-2 border-t border-slate-100">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block px-1 tracking-wider">
+                Wholesale Categories
+              </span>
+              <div className="space-y-0.5 text-xs font-semibold text-slate-700">
+                <Link
+                  href="/products"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 text-[#0759C7] font-bold"
+                >
+                  <span>All Wholesale Products</span>
+                  <span>→</span>
+                </Link>
+                <Link
+                  href="/deals"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-orange-50 text-[#F58220] font-black"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Volume Deals & Schemes</span>
+                  </span>
+                  <span className="text-[10px] bg-[#F58220] text-white px-1.5 py-0.2 rounded font-bold">HOT</span>
+                </Link>
+                <Link
+                  href="/categories/beverages"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block p-2 rounded-lg hover:bg-slate-50 hover:text-[#0759C7]"
+                >
+                  Beverages (Cold Drinks, Water)
+                </Link>
+                <Link
+                  href="/categories/snacks"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block p-2 rounded-lg hover:bg-slate-50 hover:text-[#0759C7]"
+                >
+                  Snacks & Confectionery (Wai Wai, Biscuits)
+                </Link>
+                <Link
+                  href="/categories/grocery"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block p-2 rounded-lg hover:bg-slate-50 hover:text-[#0759C7]"
+                >
+                  Grocery & Staples (Rice, Oil)
+                </Link>
+                <Link
+                  href="/categories/personal-care"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block p-2 rounded-lg hover:bg-slate-50 hover:text-[#0759C7]"
+                >
+                  Personal Care (Soaps, Shampoos)
+                </Link>
+                <Link
+                  href="/categories/household"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block p-2 rounded-lg hover:bg-slate-50 hover:text-[#0759C7]"
+                >
+                  Household & Detergents (Surf Excel)
+                </Link>
+                <Link
+                  href="/categories/dairy-bakery"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block p-2 rounded-lg hover:bg-slate-50 hover:text-[#0759C7]"
+                >
+                  Dairy & Bakery (Ghee, Butter)
+                </Link>
+              </div>
             </div>
           </div>
-        )}
+
+          {/* Drawer Footer */}
+          <div className="p-4 border-t border-slate-100 bg-slate-50/70 text-xs space-y-2">
+            <Link
+              href="/retailer/dashboard"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 text-[#102C55] font-bold shadow-xs"
+            >
+              <span className="flex items-center gap-1.5">
+                <Store className="w-4 h-4 text-[#0759C7]" />
+                <span>Retailer Portal</span>
+              </span>
+              <span className="text-[11px] text-slate-400">Kalanki Mart</span>
+            </Link>
+            <p className="text-[10px] text-slate-500 text-center">
+              Wholesale Desk: +977-01-4455667 / 9801234567
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Categories Bar */}
