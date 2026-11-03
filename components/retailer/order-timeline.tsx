@@ -96,6 +96,32 @@ export const OrderTimeline: React.FC<OrderTimelineProps> = ({ order }) => {
         </div>
       </div>
 
+      {/* Scheduled Delivery Indicator */}
+      {order.deliveryDate && (
+        <div
+          className={`p-3.5 rounded-xl border flex items-center justify-between text-xs ${
+            order.deliveryDate === new Date().toISOString().split("T")[0]
+              ? "bg-amber-50 border-amber-300 text-amber-950 ring-2 ring-amber-200"
+              : "bg-blue-50 border-blue-200 text-blue-950"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Truck className="w-4 h-4 text-[#0759C7]" />
+            <span className="font-bold">
+              {order.deliveryDate === new Date().toISOString().split("T")[0]
+                ? "🚚 On Delivery Today (आज डेलिभरी हुँदैछ)"
+                : `📅 Scheduled Delivery Date: ${order.deliveryDate}`}
+            </span>
+            {order.deliveryTimeSlot && (
+              <span className="text-slate-600 font-normal">• Slot: {order.deliveryTimeSlot}</span>
+            )}
+          </div>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-white text-slate-700 border border-slate-200">
+            {order.deliveryDate === new Date().toISOString().split("T")[0] ? "Out for Delivery" : "Confirmed Schedule"}
+          </span>
+        </div>
+      )}
+
       {/* Delivery personnel card if dispatched */}
       {order.deliveryPerson && (
         <div className="mt-4 p-4 rounded-xl bg-blue-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">

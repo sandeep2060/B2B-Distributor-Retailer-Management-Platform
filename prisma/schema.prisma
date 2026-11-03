@@ -165,6 +165,7 @@ model DistributorProfile {
   updatedAt          DateTime            @updatedAt
 
   products           Product[]
+  companies          DistributorCompany[]
   offers             Offer[]
   orders             Order[]
   invoices           Invoice[]
@@ -253,6 +254,7 @@ model Product {
   category        Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   brandId         String?
   brand           Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  companyName     String?        // Principal company/manufacturer (e.g. Unilever Nepal, Dabur Nepal, CG Foods)
   title           String
   slug            String         @unique
   sku             String         @unique
@@ -273,6 +275,14 @@ model Product {
   freeSchemeMinQty Int?          @default(10)
   freeItemName    String?
   freeItemQty     Int?           @default(1)
+  freeSchemeType  String?        @default("SAME_PRODUCT") // "SAME_PRODUCT" | "ANOTHER_PRODUCT" | "UNSELLING_ITEM"
+  freeProductId   String?        // Target product ID if another item is gifted
+  freeItemSku     String?        // SKU of the free item
+  hasUnsellingBonus Boolean      @default(false) // Whether an unselling/clearance dead stock gift is attached
+  unsellingItemName String?      // Description of the unselling item (e.g. slow-moving stock, clearance goods)
+  unsellingItemMinQty Int?       @default(2) // Min cartons to earn the unselling item
+  unsellingItemQty Int?          @default(1) // Qty of unselling items awarded
+  unsellingItemTag String?       // Tag: "CLEARANCE_STOCK", "DEAD_STOCK", "PROMO_GIFT"
   cashDiscountPercent Decimal    @default(2.00) @db.Decimal(5, 2)
   promotionalGift String?
   festivalTag     String?
@@ -421,6 +431,10 @@ model Order {
   specialInstructions   String?
   notes                 String?
   deliveryDate          DateTime?
+  deliveryTimeSlot      String?
+  isInvoiced            Boolean        @default(false)
+  invoiceNumber         String?
+  confirmationNoticeJson String?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
 
@@ -449,6 +463,10 @@ model OrderItem {
   quantity     Int
   unitPrice    Decimal  @db.Decimal(10, 2)
   totalPrice   Decimal  @db.Decimal(12, 2)
+  isCancelled  Boolean  @default(false)
+  cancelReason String?
+  cancelledAt  DateTime?
+  isInvoiced   Boolean  @default(false)
 
   @@index([orderId])
   @@index([productId])
@@ -605,4 +623,22 @@ model AuditLog {
 
   @@index([userId])
   @@index([entity])
+}
+
+model DistributorCompany {
+  id            String             @id @default(cuid())
+  distributorId String
+  distributor   DistributorProfile @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+  name          String
+  shortCode     String?
+  category      String?
+  agencyCode    String?
+  contactPerson String?
+  contactPhone  String?
+  logoUrl       String?
+  isAuthorized  Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([distributorId])
 }

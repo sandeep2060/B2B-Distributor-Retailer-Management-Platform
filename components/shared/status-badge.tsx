@@ -16,6 +16,15 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
     case "APPROVED":
       return <Badge variant="success">{status}</Badge>;
 
+    case "ON_DELIVERY":
+    case "OUT_FOR_DELIVERY":
+    case "ON DELIVERY":
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500 text-white shadow-xs animate-pulse">
+          🚚 On Delivery
+        </span>
+      );
+
     case "DISPATCHED":
     case "PROCESSING":
     case "CONFIRMED":

@@ -4,6 +4,7 @@ import {
   INITIAL_RETAILERS,
   INITIAL_CATEGORIES,
   INITIAL_BRANDS,
+  INITIAL_DISTRIBUTOR_COMPANIES,
   INITIAL_PRODUCTS,
   INITIAL_ORDERS,
   INITIAL_OFFERS,
@@ -13,6 +14,7 @@ import {
   MockRetailerProfile,
   MockCategory,
   MockBrand,
+  MockDistributorCompany,
   MockProduct,
   MockOrder,
   MockOffer,
@@ -26,6 +28,7 @@ class MarketplaceStore {
   private retailers: MockRetailerProfile[] = [...INITIAL_RETAILERS];
   private categories: MockCategory[] = [...INITIAL_CATEGORIES];
   private brands: MockBrand[] = [...INITIAL_BRANDS];
+  private companies: MockDistributorCompany[] = [...INITIAL_DISTRIBUTOR_COMPANIES];
   private products: MockProduct[] = [...INITIAL_PRODUCTS];
   private orders: MockOrder[] = [...INITIAL_ORDERS];
   private offers: MockOffer[] = [...INITIAL_OFFERS];
@@ -133,6 +136,40 @@ class MarketplaceStore {
 
   getBrands(): MockBrand[] {
     return this.brands;
+  }
+
+  // --- DISTRIBUTOR PRINCIPAL COMPANIES / AGENCIES ---
+  getDistributorCompanies(distributorId?: string): MockDistributorCompany[] {
+    let list = this.companies;
+    if (distributorId) {
+      list = list.filter((c) => c.distributorId === distributorId);
+    }
+    return list.map((c) => ({
+      ...c,
+      productCount: this.products.filter(
+        (p) =>
+          (!distributorId || p.distributorId === distributorId) &&
+          (p.companyName?.toLowerCase() === c.name.toLowerCase() ||
+            p.brandName.toLowerCase().includes(c.name.toLowerCase()) ||
+            c.name.toLowerCase().includes(p.brandName.toLowerCase()))
+      ).length,
+    }));
+  }
+
+  getDistributorCompanyById(id: string): MockDistributorCompany | undefined {
+    return this.companies.find((c) => c.id === id);
+  }
+
+  createDistributorCompany(company: MockDistributorCompany): MockDistributorCompany {
+    this.companies.unshift(company);
+    return company;
+  }
+
+  deleteDistributorCompany(id: string): boolean {
+    const idx = this.companies.findIndex((c) => c.id === id);
+    if (idx === -1) return false;
+    this.companies.splice(idx, 1);
+    return true;
   }
 
   // --- PRODUCTS ---
@@ -243,6 +280,23 @@ class MarketplaceStore {
           if (item.quantity >= product.freeSchemeMinQty) {
             const ratio = Math.floor(item.quantity / product.freeSchemeMinQty);
             earnedFreeQty = ratio * (product.freeItemQty || 1);
+            if (product.freeSchemeType === "SAME_PRODUCT") {
+              earnedFreeItem = `${product.title} (Buy ${product.freeSchemeMinQty} Get ${product.freeItemQty || 1} Free)`;
+            } else if (product.freeSchemeType === "ANOTHER_PRODUCT") {
+              earnedFreeItem = `${product.freeItemName || "Free Bonus Item"} (Cross-Product Scheme)`;
+            } else if (product.freeSchemeType === "UNSELLING_ITEM") {
+              earnedFreeItem = `${product.freeItemName || "Clearance Stock"} [Unselling Stock Freebie]`;
+            }
+          }
+        }
+
+        // Additional Unselling / Surplus Stock Bonus calculation
+        let earnedUnsellingQty = 0;
+        let earnedUnsellingItem = product.unsellingItemName || "Clearance Surplus Stock";
+        if (product.hasUnsellingBonus && product.unsellingItemMinQty && product.unsellingItemMinQty > 0) {
+          if (item.quantity >= product.unsellingItemMinQty) {
+            const ratio = Math.floor(item.quantity / product.unsellingItemMinQty);
+            earnedUnsellingQty = ratio * (product.unsellingItemQty || 1);
           }
         }
 
@@ -262,6 +316,8 @@ class MarketplaceStore {
           appliedTierDiscount,
           earnedFreeQty,
           earnedFreeItem,
+          earnedUnsellingQty,
+          earnedUnsellingItem,
           cashDiscountRate,
           cashDiscountAmount,
           isVatExempt,
@@ -287,19 +343,48 @@ class MarketplaceStore {
     // Total potential spot cash discount across all products in cart
     const totalCashDiscount = populated.reduce((acc, curr) => acc + (curr.cashDiscountAmount || 0), 0);
 
-    // Total free bonus cartons awarded
-    const totalFreeUnits = populated.reduce((acc, curr) => acc + (curr.earnedFreeQty || 0), 0);
+    // Total free bonus cartons / items awarded
+    const totalFreeUnits = populated.reduce(
+      (acc, curr) => acc + (curr.earnedFreeQty || 0) + (curr.earnedUnsellingQty || 0),
+      0
+    );
 
     // List of earned free schemes
-    const freeSchemeAwards = populated
-      .filter((i) => i.earnedFreeQty > 0)
-      .map((i) => ({
-        productId: i.productId,
-        title: i.earnedFreeItem,
-        quantity: i.earnedFreeQty,
-        unitType: i.unitType,
-        sourceProduct: i.product.title,
-      }));
+    const freeSchemeAwards: {
+      productId: string;
+      title: string;
+      quantity: number;
+      unitType: string;
+      sourceProduct: string;
+      schemeType?: string;
+      isUnsellingBonus?: boolean;
+      tag?: string;
+    }[] = [];
+
+    populated.forEach((i) => {
+      if (i.earnedFreeQty > 0) {
+        freeSchemeAwards.push({
+          productId: i.productId,
+          title: i.earnedFreeItem,
+          quantity: i.earnedFreeQty,
+          unitType: i.unitType,
+          sourceProduct: i.product.title,
+          schemeType: i.product.freeSchemeType || "SAME_PRODUCT",
+        });
+      }
+      if (i.earnedUnsellingQty > 0) {
+        freeSchemeAwards.push({
+          productId: i.productId,
+          title: i.earnedUnsellingItem,
+          quantity: i.earnedUnsellingQty,
+          unitType: "UNIT",
+          sourceProduct: i.product.title,
+          schemeType: "UNSELLING_ITEM",
+          isUnsellingBonus: true,
+          tag: i.product.unsellingItemTag || "Clearance Stock Freebie",
+        });
+      }
+    });
 
     // List of earned promotional merchandise gifts
     const giftsAwarded = populated
@@ -451,7 +536,210 @@ class MarketplaceStore {
       assignedAt: new Date().toISOString(),
     };
     order.status = "DISPATCHED";
+    order.dispatchedAt = new Date().toISOString();
     return order;
+  }
+
+  cancelOrderItem(orderId: string, itemId: string, cancelReason: string): MockOrder | null {
+    const order = this.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order) return null;
+
+    const item = order.items.find((i) => i.id === itemId);
+    if (!item) return null;
+
+    item.isCancelled = true;
+    item.cancelReason = cancelReason || "Stock Unavailable";
+    item.cancelledAt = new Date().toISOString();
+    item.isInvoiced = false;
+
+    // Recalculate order totals for active items
+    const activeItems = order.items.filter((i) => !i.isCancelled);
+    const newSubtotal = activeItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const taxableItems = activeItems.filter((i) => !i.isVatExempt);
+    const taxableSubtotal = taxableItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const vatExemptSubtotal = activeItems.filter((i) => i.isVatExempt).reduce((sum, i) => sum + i.totalPrice, 0);
+    const newTaxAmount = Math.round(taxableSubtotal * 0.13 * 100) / 100;
+    const newTotalAmount = newSubtotal + newTaxAmount + (activeItems.length > 0 ? order.deliveryFee : 0);
+    const newCommission = Math.round(newTotalAmount * (order.commissionRate / 100) * 100) / 100;
+
+    order.subtotal = newSubtotal;
+    order.taxAmount = newTaxAmount;
+    order.totalAmount = newTotalAmount;
+    order.commissionAmount = newCommission;
+    order.netDistributorEarnings = Math.round((newTotalAmount - newCommission) * 100) / 100;
+    if (order.taxCategoryBreakdown) {
+      order.taxCategoryBreakdown = {
+        taxable: taxableSubtotal,
+        vatExempt: vatExemptSubtotal,
+        vatAmount: newTaxAmount,
+      };
+    }
+
+    if (activeItems.length === 0) {
+      order.status = "CANCELLED";
+    }
+
+    return order;
+  }
+
+  uncancelOrderItem(orderId: string, itemId: string): MockOrder | null {
+    const order = this.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order) return null;
+
+    const item = order.items.find((i) => i.id === itemId);
+    if (!item) return null;
+
+    item.isCancelled = false;
+    delete item.cancelReason;
+    delete item.cancelledAt;
+
+    const activeItems = order.items.filter((i) => !i.isCancelled);
+    const newSubtotal = activeItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const taxableItems = activeItems.filter((i) => !i.isVatExempt);
+    const taxableSubtotal = taxableItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const vatExemptSubtotal = activeItems.filter((i) => i.isVatExempt).reduce((sum, i) => sum + i.totalPrice, 0);
+    const newTaxAmount = Math.round(taxableSubtotal * 0.13 * 100) / 100;
+    const newTotalAmount = newSubtotal + newTaxAmount + order.deliveryFee;
+    const newCommission = Math.round(newTotalAmount * (order.commissionRate / 100) * 100) / 100;
+
+    order.subtotal = newSubtotal;
+    order.taxAmount = newTaxAmount;
+    order.totalAmount = newTotalAmount;
+    order.commissionAmount = newCommission;
+    order.netDistributorEarnings = Math.round((newTotalAmount - newCommission) * 100) / 100;
+    if (order.status === "CANCELLED" && activeItems.length > 0) {
+      order.status = "PROCESSING";
+    }
+
+    return order;
+  }
+
+  setOrderInvoice(
+    orderId: string,
+    selectedItemIds: string[]
+  ): { order: MockOrder; invoice: MockInvoice; notice: any } | null {
+    const order = this.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order) return null;
+
+    order.items.forEach((item) => {
+      item.isInvoiced = !item.isCancelled && selectedItemIds.includes(item.id);
+    });
+
+    const invoicedItems = order.items.filter((i) => i.isInvoiced);
+    const invSubtotal = invoicedItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const taxableItems = invoicedItems.filter((i) => !i.isVatExempt);
+    const taxableSubtotal = taxableItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    const vatExemptSubtotal = invoicedItems.filter((i) => i.isVatExempt).reduce((sum, i) => sum + i.totalPrice, 0);
+    const vatAmount = Math.round(taxableSubtotal * 0.13 * 100) / 100;
+    const grandTotal = invSubtotal + vatAmount;
+
+    let invoice = this.invoices.find((i) => i.orderId === order.id);
+    const dist = this.getDistributorById(order.distributorId);
+    const ret = this.getRetailerByUserId(order.retailerId);
+
+    if (invoice) {
+      invoice.items = invoicedItems;
+      invoice.taxableAmount = taxableSubtotal;
+      invoice.vatAmount = vatAmount;
+      invoice.vatExemptAmount = vatExemptSubtotal;
+      invoice.grandTotal = grandTotal;
+      invoice.status = order.paymentStatus === "PAID" ? "PAID" : "PENDING";
+    } else {
+      const invoiceNumber = `INV-2026-BAG-${Math.floor(1000 + Math.random() * 9000)}`;
+      invoice = {
+        id: `inv_${Date.now()}`,
+        invoiceNumber,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        distributorId: order.distributorId,
+        distributorName: order.distributorName,
+        distributorPan: dist?.panVatNumber || "601234567",
+        distributorAddress: dist ? `${dist.municipality}-${dist.ward}, ${dist.district}` : "Kathmandu, Nepal",
+        distributorPhone: dist?.contactPhone || "9851000000",
+        retailerId: order.retailerId,
+        retailerShop: order.retailerShop,
+        retailerName: order.retailerName,
+        retailerPan: ret?.panVatNumber || "301234567",
+        retailerAddress: `${order.deliveryAddress.municipality}-${order.deliveryAddress.ward}, ${order.deliveryAddress.district}`,
+        retailerPhone: order.deliveryAddress.phone,
+        taxableAmount: taxableSubtotal,
+        vatAmount,
+        vatExemptAmount: vatExemptSubtotal,
+        cashDiscountAmount: order.cashDiscountAmount ?? 0,
+        freeItemsAwarded: order.freeItemsAwarded ?? [],
+        grandTotal,
+        status: order.paymentStatus === "PAID" ? "PAID" : "PENDING",
+        createdAt: new Date().toISOString(),
+        items: invoicedItems,
+      };
+      this.invoices.unshift(invoice);
+    }
+
+    order.isInvoiced = true;
+    order.invoiceId = invoice.id;
+    order.invoiceNumber = invoice.invoiceNumber;
+    order.invoicedAt = new Date().toISOString();
+
+    if (order.status === "PENDING") {
+      order.status = "CONFIRMED";
+    }
+
+    const notice = {
+      sentAt: new Date().toISOString(),
+      message: `तपाईंको अर्डर (${order.orderNumber}) स्वीकृत भएको छ र आधिकारिक कर इनभ्वाइस (${invoice.invoiceNumber}) जारी भएको छ। कुल रकम: रु. ${grandTotal.toLocaleString("ne-NP")}`,
+      recipientPhone: order.deliveryAddress.phone,
+    };
+    order.confirmationNotice = notice;
+
+    return { order, invoice, notice };
+  }
+
+  scheduleOrderDelivery(
+    orderId: string,
+    deliveryDate: string,
+    timeSlot?: string,
+    personnel?: { name: string; phone: string; vehicleNo: string }
+  ): MockOrder | null {
+    const order = this.orders.find((o) => o.id === orderId || o.orderNumber === orderId);
+    if (!order) return null;
+
+    order.deliveryDate = deliveryDate;
+    if (timeSlot) order.deliveryTimeSlot = timeSlot;
+
+    if (personnel && personnel.name) {
+      order.deliveryPerson = {
+        ...personnel,
+        assignedAt: new Date().toISOString(),
+      };
+      order.status = "DISPATCHED";
+      order.dispatchedAt = new Date().toISOString();
+    }
+
+    return order;
+  }
+
+  bulkDispatchOrders(
+    orderIds: string[],
+    deliveryDate: string,
+    deliveryPerson: { name: string; phone: string; vehicleNo: string },
+    timeSlot?: string
+  ): MockOrder[] {
+    const updated: MockOrder[] = [];
+    orderIds.forEach((id) => {
+      const order = this.orders.find((o) => o.id === id || o.orderNumber === id);
+      if (order && order.status !== "CANCELLED" && order.status !== "DELIVERED") {
+        order.deliveryDate = deliveryDate;
+        if (timeSlot) order.deliveryTimeSlot = timeSlot;
+        order.deliveryPerson = {
+          ...deliveryPerson,
+          assignedAt: new Date().toISOString(),
+        };
+        order.status = "DISPATCHED";
+        order.dispatchedAt = new Date().toISOString();
+        updated.push(order);
+      }
+    });
+    return updated;
   }
 
   // --- OFFERS ---

@@ -115,7 +115,7 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, backHref = "/
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {invoice.items.map((item, index) => (
+              {invoice.items.filter((item) => !item.isCancelled).map((item, index) => (
                 <tr key={item.id} className="hover:bg-slate-50/50">
                   <td className="py-3 px-2 text-center font-mono text-slate-500">{index + 1}</td>
                   <td className="py-3 px-2">

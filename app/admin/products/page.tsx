@@ -69,8 +69,25 @@ export default function AdminProductsPage() {
                   <td className="py-3.5 px-4">
                     <div className="flex flex-wrap gap-1 max-w-[180px]">
                       {p.hasFreeScheme && (
-                        <span className="text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-1 py-0.5 rounded">
-                          🎁 {p.freeSchemeMinQty}+{p.freeItemQty || 1} Free
+                        <span
+                          className={`text-[9px] font-bold border px-1 py-0.5 rounded ${
+                            p.freeSchemeType === "ANOTHER_PRODUCT"
+                              ? "bg-blue-50 text-blue-800 border-blue-200"
+                              : p.freeSchemeType === "UNSELLING_ITEM"
+                              ? "bg-purple-50 text-purple-800 border-purple-200"
+                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          }`}
+                        >
+                          {p.freeSchemeType === "ANOTHER_PRODUCT"
+                            ? `🎁 Buy ${p.freeSchemeMinQty} Get 1 Other Free`
+                            : p.freeSchemeType === "UNSELLING_ITEM"
+                            ? `📦 Free Clearance Item`
+                            : `🎁 ${p.freeSchemeMinQty}+${p.freeItemQty || 1} Free`}
+                        </span>
+                      )}
+                      {p.hasUnsellingBonus && (
+                        <span className="text-[9px] font-bold bg-orange-50 text-orange-800 border border-orange-200 px-1 py-0.5 rounded">
+                          📦 +Clearance Gift
                         </span>
                       )}
                       {Boolean(p.cashDiscountPercent && p.cashDiscountPercent > 0) && (

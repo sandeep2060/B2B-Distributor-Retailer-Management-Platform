@@ -42,6 +42,10 @@ export async function POST(request: Request) {
     const category = marketplaceStore.getCategories().find((c) => c.id === data.categoryId);
     const brand = marketplaceStore.getBrands().find((b) => b.id === data.brandId);
 
+    const categoryName = data.customCategory || category?.name || "General FMCG";
+    const brandName = data.customBrand || brand?.name || data.companyName || "Authorized Agency";
+    const companyName = data.companyName || (brand?.name ? `${brand.name} Agency` : "Principal FMCG");
+
     const slug = data.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -58,18 +62,19 @@ export async function POST(request: Request) {
       id: `prod_${Date.now()}`,
       distributorId,
       distributorName: dist?.companyName || "Himalayan FMCG Distributors Pvt. Ltd.",
-      categoryId: data.categoryId,
-      categoryName: category?.name || "General FMCG",
-      brandId: data.brandId,
-      brandName: brand?.name || "Local Brand",
+      companyName,
+      categoryId: data.categoryId || "cat_custom",
+      categoryName,
+      brandId: data.brandId || "b_custom",
+      brandName,
       title: data.title,
       slug,
-      sku: data.sku,
+      sku: data.sku || `SKU-${Date.now().toString(36).toUpperCase()}`,
       description: data.description,
       unitType: data.unitType as any,
       packSize: data.packSize,
       unitsPerCarton: data.unitsPerCarton,
-      mrp: data.mrp,
+      mrp: data.mrp || (data.unitsPerCarton > 0 ? Math.round(data.cartonMrp / data.unitsPerCarton) : data.cartonMrp),
       cartonMrp: data.cartonMrp,
       wholesalePrice: data.wholesalePrice,
       minOrderQty: data.minOrderQty,
@@ -84,6 +89,14 @@ export async function POST(request: Request) {
       freeSchemeMinQty: data.freeSchemeMinQty,
       freeItemName: data.freeItemName,
       freeItemQty: data.freeItemQty,
+      freeSchemeType: data.freeSchemeType,
+      freeProductId: data.freeProductId,
+      freeItemSku: data.freeItemSku,
+      hasUnsellingBonus: data.hasUnsellingBonus,
+      unsellingItemName: data.unsellingItemName,
+      unsellingItemMinQty: data.unsellingItemMinQty,
+      unsellingItemQty: data.unsellingItemQty,
+      unsellingItemTag: data.unsellingItemTag,
       cashDiscountPercent: data.cashDiscountPercent,
       promotionalGift: data.promotionalGift,
       festivalTag: data.festivalTag,

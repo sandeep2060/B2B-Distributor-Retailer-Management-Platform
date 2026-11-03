@@ -43,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ type, userTitle, userName }) =
   const distributorNav: NavItem[] = [
     { label: "Dashboard", href: "/distributor/dashboard", icon: LayoutDashboard },
     { label: "Product Catalog", href: "/distributor/products", icon: Package },
+    { label: "My Companies", href: "/distributor/companies", icon: Building2 },
     { label: "Wholesale Offers", href: "/distributor/offers", icon: Percent },
     { label: "Orders Received", href: "/distributor/orders", icon: ShoppingCart, badge: "2 New" },
     { label: "Delivery Tracking", href: "/distributor/deliveries", icon: Truck },

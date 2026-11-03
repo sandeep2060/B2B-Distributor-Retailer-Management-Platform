@@ -26,6 +26,8 @@ import {
   BadgePercent,
   HelpCircle,
   Coins,
+  PackagePlus,
+  Boxes,
 } from "lucide-react";
 
 export default function ProductDetailPage({ params }: { params: { slug: string } }) {
@@ -68,10 +70,20 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   const totalMarginNPR = (product.cartonMrp - effectiveCartonPrice) * qty;
 
   // Real-Market Offers Calculations
-  const freeSchemeMin = product.freeSchemeMinQty || 10;
+  const freeSchemeMin = product.freeSchemeMinQty || (product.freeSchemeType === "ANOTHER_PRODUCT" ? 1 : 10);
   const freeSchemeMultiplier = Math.floor(qty / freeSchemeMin);
   const earnedFreeQty = product.hasFreeScheme ? freeSchemeMultiplier * (product.freeItemQty || 1) : 0;
-  const remainingForFree = product.hasFreeScheme ? freeSchemeMin - (qty % freeSchemeMin) : 0;
+  const remainingForFree = product.hasFreeScheme && freeSchemeMultiplier === 0
+    ? freeSchemeMin - qty
+    : (freeSchemeMin - (qty % freeSchemeMin)) % freeSchemeMin;
+
+  // Additional Unselling Bonus item calculation
+  const unsellingMin = product.unsellingItemMinQty || 3;
+  const unsellingMultiplier = Math.floor(qty / unsellingMin);
+  const earnedUnsellingQty = product.hasUnsellingBonus ? unsellingMultiplier * (product.unsellingItemQty || 1) : 0;
+  const remainingForUnselling = product.hasUnsellingBonus && unsellingMultiplier === 0
+    ? unsellingMin - qty
+    : (unsellingMin - (qty % unsellingMin)) % unsellingMin;
 
   const cashDiscountPercent = product.cashDiscountPercent || 2.0;
   const spotDiscountAmount = Math.round(((totalSubtotal * cashDiscountPercent) / 100) * 100) / 100;
@@ -216,8 +228,16 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
           <div className="lg:col-span-7 space-y-5">
             {/* Header info */}
             <div>
-              <div className="flex items-center gap-2 text-xs font-bold text-[#0759C7] mb-1">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#0759C7] mb-1">
                 <span>{product.brandName}</span>
+                {product.companyName && (
+                  <>
+                    <span>•</span>
+                    <span className="text-slate-700 bg-slate-100 px-2 py-0.5 rounded font-medium">
+                      🏢 {product.companyName}
+                    </span>
+                  </>
+                )}
                 <span>•</span>
                 <span className="text-slate-500 font-normal">SKU: {product.sku}</span>
                 <span>•</span>
@@ -250,30 +270,95 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
 
             {/* REAL-MARKET SCHEMES & OFFERS CALLOUTS */}
             <div className="space-y-2.5">
-              {/* Scheme 1: Buy X Get Y Free (माल फ्रि योजना) */}
+              {/* Scheme 1: Primary Free Goods Scheme (Buy 5 Get 1, Buy 1 Get Another Free, or Free Unselling Item) */}
               {product.hasFreeScheme && (
-                <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                <div
+                  className={`p-3.5 border rounded-xl flex items-center justify-between text-xs ${
+                    product.freeSchemeType === "ANOTHER_PRODUCT"
+                      ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200"
+                      : product.freeSchemeType === "UNSELLING_ITEM"
+                      ? "bg-gradient-to-r from-purple-50 to-fuchsia-50 border-purple-200"
+                      : "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200"
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold flex-shrink-0">
-                      <Gift className="w-5 h-5" />
+                    <div
+                      className={`w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold flex-shrink-0 ${
+                        product.freeSchemeType === "ANOTHER_PRODUCT"
+                          ? "bg-[#0759C7]"
+                          : product.freeSchemeType === "UNSELLING_ITEM"
+                          ? "bg-purple-600"
+                          : "bg-emerald-600"
+                      }`}
+                    >
+                      {product.freeSchemeType === "ANOTHER_PRODUCT" ? (
+                        <PackagePlus className="w-5 h-5" />
+                      ) : product.freeSchemeType === "UNSELLING_ITEM" ? (
+                        <Boxes className="w-5 h-5" />
+                      ) : (
+                        <Gift className="w-5 h-5" />
+                      )}
                     </div>
                     <div>
-                      <p className="font-black text-emerald-950">
-                        Buy {product.freeSchemeMinQty} Cartons, Get {product.freeItemQty || 1} Free!
+                      <p className="font-black text-slate-900">
+                        {product.freeSchemeType === "ANOTHER_PRODUCT"
+                          ? `Buy ${product.freeSchemeMinQty} Carton, Get ${product.freeItemQty || 1} Free Another Item!`
+                          : product.freeSchemeType === "UNSELLING_ITEM"
+                          ? `Buy ${product.freeSchemeMinQty}+ Cartons, Get Free Clearance Stock!`
+                          : `Buy ${product.freeSchemeMinQty} Cartons, Get ${product.freeItemQty || 1} Free!`}
                       </p>
-                      <p className="text-[11px] text-emerald-800">
-                        Free Goods: <strong className="font-semibold">{product.freeItemName}</strong>
+                      <p className="text-[11px] text-slate-700">
+                        Free Awarded:{" "}
+                        <strong className="font-semibold text-slate-900">{product.freeItemName}</strong>
+                        {product.freeSchemeType === "ANOTHER_PRODUCT" && " (Cross-Product Deal)"}
+                        {product.freeSchemeType === "UNSELLING_ITEM" && " [Clearance Freebie]"}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     {earnedFreeQty > 0 ? (
-                      <span className="font-bold text-xs bg-emerald-600 text-white px-2.5 py-1 rounded-lg">
-                        +{earnedFreeQty} FREE Cartons Earned!
+                      <span
+                        className={`font-bold text-xs text-white px-2.5 py-1 rounded-lg ${
+                          product.freeSchemeType === "ANOTHER_PRODUCT"
+                            ? "bg-[#0759C7]"
+                            : product.freeSchemeType === "UNSELLING_ITEM"
+                            ? "bg-purple-600"
+                            : "bg-emerald-600"
+                        }`}
+                      >
+                        +{earnedFreeQty} Free Item(s) Earned!
                       </span>
                     ) : (
-                      <span className="text-[10px] text-emerald-700 bg-white/80 border border-emerald-200 px-2 py-1 rounded">
+                      <span className="text-[10px] text-slate-600 bg-white/80 border border-slate-200 px-2 py-1 rounded">
                         Add {remainingForFree} more ctn for free item
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Scheme 2: Separate Attached Unselling / Clearance Gift */}
+              {product.hasUnsellingBonus && (
+                <div className="p-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    <Boxes className="w-4 h-4 text-[#F58220] flex-shrink-0" />
+                    <div>
+                      <span className="font-bold text-orange-950">
+                        Clearance Bonus: +{product.unsellingItemQty || 1} {product.unsellingItemName} Free
+                      </span>
+                      <span className="block text-[11px] text-orange-800">
+                        On minimum order of {product.unsellingItemMinQty || 3}+ cartons ({product.unsellingItemTag || "Stock Liquidation Clearance"})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    {earnedUnsellingQty > 0 ? (
+                      <span className="font-bold text-xs bg-[#F58220] text-white px-2 py-0.5 rounded-lg">
+                        +{earnedUnsellingQty} Clearance Item Earned!
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-orange-700 bg-white border border-orange-200 px-2 py-0.5 rounded">
+                        Add {remainingForUnselling} more ctn for gift
                       </span>
                     )}
                   </div>

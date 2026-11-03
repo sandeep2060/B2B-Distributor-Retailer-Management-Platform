@@ -194,6 +194,11 @@ export default function DistributorProductsPage() {
 
                     <td className="py-3.5 px-4">
                       <p className="font-semibold text-slate-800">{prod.brandName}</p>
+                      {prod.companyName && (
+                        <p className="text-[10px] font-bold text-[#0759C7] truncate max-w-[130px]" title={prod.companyName}>
+                          🏢 {prod.companyName}
+                        </p>
+                      )}
                       <p className="text-[10px] text-slate-400">{prod.categoryName}</p>
                     </td>
 
@@ -215,11 +220,32 @@ export default function DistributorProductsPage() {
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-4 max-w-[200px]">
+                    <td className="py-3.5 px-4 max-w-[220px]">
                       <div className="flex flex-wrap gap-1">
                         {prod.hasFreeScheme && (
-                          <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            🎁 Buy {prod.freeSchemeMinQty} +{prod.freeItemQty || 1} Free
+                          <span
+                            className={`inline-block border text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              prod.freeSchemeType === "ANOTHER_PRODUCT"
+                                ? "bg-blue-50 text-blue-800 border-blue-200"
+                                : prod.freeSchemeType === "UNSELLING_ITEM"
+                                ? "bg-purple-50 text-purple-800 border-purple-200"
+                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            }`}
+                            title={prod.freeItemName || "Free Goods Scheme"}
+                          >
+                            {prod.freeSchemeType === "ANOTHER_PRODUCT"
+                              ? `🎁 Buy ${prod.freeSchemeMinQty} Get ${prod.freeItemQty || 1} Another Free`
+                              : prod.freeSchemeType === "UNSELLING_ITEM"
+                              ? `📦 Free Clearance: ${prod.freeItemName ? prod.freeItemName.slice(0, 18) + "..." : "Item"}`
+                              : `🎁 Buy ${prod.freeSchemeMinQty} +${prod.freeItemQty || 1} Free`}
+                          </span>
+                        )}
+                        {prod.hasUnsellingBonus && (
+                          <span
+                            className="inline-block bg-orange-50 text-orange-800 border border-orange-200 text-[10px] font-bold px-1.5 py-0.5 rounded truncate max-w-[160px]"
+                            title={`Free Unselling Item on ${prod.unsellingItemMinQty}+ cartons: ${prod.unsellingItemName}`}
+                          >
+                            📦 +Clearance: {prod.unsellingItemName ? prod.unsellingItemName.slice(0, 14) + "..." : "Gift"}
                           </span>
                         )}
                         {Boolean(prod.cashDiscountPercent && prod.cashDiscountPercent > 0) && (

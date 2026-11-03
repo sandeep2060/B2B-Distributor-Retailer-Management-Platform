@@ -92,6 +92,31 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         </div>
       </div>
 
+      {/* Confirmation and Invoicing Notice from Distributor */}
+      {order.confirmationNotice && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-300 shadow-xs space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-black text-emerald-900 flex items-center gap-1.5 uppercase tracking-wider">
+              <Check className="w-4 h-4 text-emerald-700" />
+              Notice: Order Confirmed & Tax Invoice Generated (अर्डर स्वीकृत भयो र इनभ्वाइस तयार भयो)
+            </span>
+            <span className="text-[11px] font-mono text-emerald-800 font-semibold">
+              {formatDate(order.confirmationNotice.sentAt)}
+            </span>
+          </div>
+          <p className="text-xs text-emerald-950 font-medium leading-relaxed">
+            "{order.confirmationNotice.message}"
+          </p>
+          <div className="text-[11px] text-emerald-800 flex items-center gap-2 pt-1">
+            <span>Invoice Ref: <strong className="font-mono">{order.invoiceNumber}</strong></span>
+            <span>•</span>
+            <Link href={`/retailer/invoices/${order.id}`} className="underline font-bold text-emerald-900 hover:text-emerald-700">
+              Download / Print Official IRD Tax Invoice →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Order Timeline Component */}
       <OrderTimeline order={order} />
 
@@ -157,36 +182,74 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {order.items.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/50">
-                  <td className="py-3.5 px-4">
-                    <p className="font-bold text-slate-900">{item.productTitle}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[11px] text-slate-400 font-mono">SKU: {item.productSku}</span>
-                      {item.isVatExempt ? (
-                        <span className="text-[9px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
-                          0% VAT-Exempt
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                          13% VAT
-                        </span>
-                      )}
-                      {item.freeSchemeNote && (
-                        <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
-                          {item.freeSchemeNote}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-center font-medium text-slate-600">{item.unitType}</td>
-                  <td className="py-3.5 px-4 text-center font-bold text-slate-900 font-mono">{item.quantity}</td>
-                  <td className="py-3.5 px-4 text-right font-mono text-slate-700">{formatNPR(item.unitPrice)}</td>
-                  <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-900">
-                    {formatNPR(item.totalPrice)}
-                  </td>
-                </tr>
-              ))}
+              {order.items.map((item) => {
+                const isCancelled = item.isCancelled;
+                return (
+                  <tr
+                    key={item.id}
+                    className={`transition-colors ${
+                      isCancelled ? "bg-rose-50/40 text-slate-400" : "hover:bg-slate-50/50"
+                    }`}
+                  >
+                    <td className="py-3.5 px-4">
+                      <p
+                        className={`font-bold ${
+                          isCancelled ? "line-through text-slate-400" : "text-slate-900"
+                        }`}
+                      >
+                        {item.productTitle}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                        <span className="text-[11px] text-slate-400 font-mono">SKU: {item.productSku}</span>
+
+                        {isCancelled && (
+                          <span className="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded border border-rose-200">
+                            ✕ Item Cancelled: {item.cancelReason || "Stock Unavailable"}
+                          </span>
+                        )}
+
+                        {!isCancelled && item.isInvoiced && (
+                          <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded border border-emerald-200">
+                            ✓ Invoiced
+                          </span>
+                        )}
+
+                        {item.isVatExempt ? (
+                          <span className="text-[9px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.2 rounded border border-amber-200">
+                            0% VAT-Exempt
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
+                            13% VAT
+                          </span>
+                        )}
+
+                        {item.freeSchemeNote && (
+                          <span className="text-[9px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">
+                            {item.freeSchemeNote}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-center font-medium text-slate-600">{item.unitType}</td>
+                    <td className="py-3.5 px-4 text-center font-bold font-mono">
+                      <span className={isCancelled ? "line-through text-slate-400" : "text-slate-900"}>
+                        {item.quantity}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono">
+                      <span className={isCancelled ? "line-through text-slate-400" : "text-slate-700"}>
+                        {formatNPR(item.unitPrice)}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold">
+                      <span className={isCancelled ? "line-through text-slate-400" : "text-slate-900"}>
+                        {isCancelled ? "Rs. 0.00" : formatNPR(item.totalPrice)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
 
               {order.freeItemsAwarded && order.freeItemsAwarded.length > 0 && (
                 order.freeItemsAwarded.map((freeItem, fIdx) => (

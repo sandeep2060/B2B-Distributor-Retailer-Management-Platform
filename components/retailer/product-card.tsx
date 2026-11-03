@@ -6,7 +6,7 @@ import Image from "next/image";
 import { MockProduct } from "@/lib/db/mock-data";
 import { formatNPR } from "@/lib/utils/formatters";
 import { Button } from "../ui/button";
-import { ShoppingCart, Check, ShieldCheck, Building2, Layers, Gift, Percent } from "lucide-react";
+import { ShoppingCart, Check, ShieldCheck, Building2, Layers, Gift, Percent, Boxes, PackagePlus } from "lucide-react";
 
 interface ProductCardProps {
   product: MockProduct;
@@ -62,9 +62,36 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
               </span>
             )}
             {product.hasFreeScheme && (
-              <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1">
-                <Gift className="w-2.5 h-2.5" />
-                <span>{product.freeSchemeMinQty}+{product.freeItemQty || 1} FREE</span>
+              <span
+                className={`text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 ${
+                  product.freeSchemeType === "ANOTHER_PRODUCT"
+                    ? "bg-blue-600"
+                    : product.freeSchemeType === "UNSELLING_ITEM"
+                    ? "bg-purple-600"
+                    : "bg-emerald-600"
+                }`}
+              >
+                {product.freeSchemeType === "ANOTHER_PRODUCT" ? (
+                  <>
+                    <PackagePlus className="w-2.5 h-2.5" />
+                    <span>BUY {product.freeSchemeMinQty} GET ANOTHER FREE</span>
+                  </>
+                ) : product.freeSchemeType === "UNSELLING_ITEM" ? (
+                  <>
+                    <Boxes className="w-2.5 h-2.5" />
+                    <span>FREE CLEARANCE GIFT</span>
+                  </>
+                ) : (
+                  <>
+                    <Gift className="w-2.5 h-2.5" />
+                    <span>{product.freeSchemeMinQty}+{product.freeItemQty || 1} FREE</span>
+                  </>
+                )}
+              </span>
+            )}
+            {product.hasUnsellingBonus && (
+              <span className="bg-orange-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+                <span>📦 +CLEARANCE GIFT</span>
               </span>
             )}
             {Boolean(product.cashDiscountPercent && product.cashDiscountPercent > 0) && (
@@ -97,10 +124,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
 
         {/* Product Details */}
         <div className="p-3.5 sm:p-4 space-y-2">
-          {/* Brand & Distributor */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span className="font-bold text-[#0759C7] truncate max-w-[120px]">{product.brandName}</span>
-            <span className="flex items-center gap-1 truncate max-w-[130px]" title={product.distributorName}>
+          {/* Brand & Distributor & Company */}
+          <div className="flex items-center justify-between text-[11px] text-slate-500 gap-1">
+            <div className="truncate max-w-[130px]">
+              <span className="font-bold text-[#0759C7]">{product.brandName}</span>
+              {product.companyName && (
+                <span className="text-[10px] text-slate-400 block truncate" title={product.companyName}>
+                  🏢 {product.companyName}
+                </span>
+              )}
+            </div>
+            <span className="flex items-center gap-1 truncate max-w-[120px] shrink-0" title={product.distributorName}>
               <Building2 className="w-3 h-3 text-slate-400" />
               {product.distributorName.split(" ")[0]} Dist.
             </span>

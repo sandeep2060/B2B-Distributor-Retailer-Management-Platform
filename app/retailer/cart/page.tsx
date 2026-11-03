@@ -221,6 +221,13 @@ export default function CartPage() {
                       </span>
                     ) : null}
 
+                    {/* Unselling Bonus Item Qualification */}
+                    {item.earnedUnsellingQty > 0 && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-100 text-purple-900 font-bold border border-purple-200">
+                        <span>📦 Clearance Freebie: +{item.earnedUnsellingQty} {item.earnedUnsellingItem} Free!</span>
+                      </span>
+                    )}
+
                     {/* Spot Cash Discount Preview */}
                     {item.cashDiscountRate > 0 && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-medium border border-amber-200">
@@ -254,15 +261,20 @@ export default function CartPage() {
 
           {/* Trade Scheme Summary Callout */}
           {cart.freeSchemeAwards && cart.freeSchemeAwards.length > 0 && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-900">
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs text-emerald-900">
               <div className="flex items-center gap-2 font-bold text-emerald-800">
                 <Gift className="w-4 h-4 text-emerald-700" />
-                <span>Active Wholesale Trade Schemes in this Order:</span>
+                <span>Earned Wholesale Trade Schemes & Free Goods in this Order:</span>
               </div>
-              <ul className="list-disc list-inside space-y-0.5 pl-1 text-[11px] font-medium text-emerald-800">
+              <ul className="space-y-1.5 pl-1 text-[11px] font-medium text-emerald-800">
                 {cart.freeSchemeAwards.map((scheme: any, idx: number) => (
-                  <li key={idx}>
-                    <strong>+{scheme.quantity} Free Carton(s)</strong> of {scheme.title} (Earned from ordering {scheme.sourceProduct})
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className="font-bold text-emerald-900 bg-emerald-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                      +{scheme.quantity} FREE
+                    </span>
+                    <span>
+                      <strong>{scheme.title}</strong> {scheme.isUnsellingBonus ? `[${scheme.tag || "Clearance Gift"}]` : ""} (from {scheme.sourceProduct})
+                    </span>
                   </li>
                 ))}
               </ul>

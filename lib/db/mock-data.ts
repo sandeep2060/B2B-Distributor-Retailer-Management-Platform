@@ -67,10 +67,26 @@ export interface MockBrand {
   logoUrl: string;
 }
 
+export interface MockDistributorCompany {
+  id: string;
+  distributorId: string;
+  name: string; // e.g. "Unilever Nepal", "Dabur Nepal", "CG Foods"
+  shortCode?: string; // e.g. "ULN"
+  category?: string; // e.g. "Personal Care & Cleaning"
+  agencyCode?: string; // e.g. "AGY-ULN-2026"
+  contactPerson?: string;
+  contactPhone?: string;
+  logoUrl?: string;
+  productCount?: number;
+  isAuthorized: boolean;
+  createdAt: string;
+}
+
 export interface MockProduct {
   id: string;
   distributorId: string;
   distributorName: string;
+  companyName?: string; // Principal manufacturing company (e.g. "Unilever Nepal", "Dabur Nepal", "CG Foods")
   categoryId: string;
   categoryName: string;
   brandId: string;
@@ -102,6 +118,14 @@ export interface MockProduct {
   freeSchemeMinQty?: number;
   freeItemName?: string;
   freeItemQty?: number;
+  freeSchemeType?: "SAME_PRODUCT" | "ANOTHER_PRODUCT" | "UNSELLING_ITEM";
+  freeProductId?: string;
+  freeItemSku?: string;
+  hasUnsellingBonus?: boolean;
+  unsellingItemName?: string;
+  unsellingItemMinQty?: number;
+  unsellingItemQty?: number;
+  unsellingItemTag?: string;
   cashDiscountPercent?: number; // Spot Cash / QR discount %
   promotionalGift?: string;
   festivalTag?: string;
@@ -137,6 +161,10 @@ export interface MockOrderItem {
   freeSchemeNote?: string;
   spotDiscountPercent?: number;
   isVatExempt?: boolean;
+  isCancelled?: boolean;
+  cancelReason?: string;
+  cancelledAt?: string;
+  isInvoiced?: boolean;
 }
 
 export interface MockOrder {
@@ -178,6 +206,21 @@ export interface MockOrder {
     vehicleNo: string;
     assignedAt: string;
   };
+  // Delivery Scheduling
+  deliveryDate?: string;
+  deliveryTimeSlot?: string;
+  // Invoicing and Confirmation Notice
+  isInvoiced?: boolean;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  invoicedAt?: string;
+  confirmationNotice?: {
+    sentAt: string;
+    message: string;
+    recipientPhone: string;
+  };
+  dispatchedAt?: string;
+  deliveredAt?: string;
   notes?: string;
   createdAt: string;
   items: MockOrderItem[];
@@ -462,6 +505,74 @@ export const INITIAL_BRANDS: MockBrand[] = [
   { id: "b_aarati", name: "Aarati Oil Mills", slug: "aarati", logoUrl: "" },
 ];
 
+export const INITIAL_DISTRIBUTOR_COMPANIES: MockDistributorCompany[] = [
+  {
+    id: "comp_1",
+    distributorId: "dist_1",
+    name: "Unilever Nepal Ltd.",
+    shortCode: "UNILEVER",
+    category: "Personal Care, Soaps & Hygiene",
+    agencyCode: "AGY-ULN-8091",
+    contactPerson: "Sunil Shakya",
+    contactPhone: "9851088881",
+    logoUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?w=200",
+    isAuthorized: true,
+    createdAt: "2026-01-15T00:00:00Z",
+  },
+  {
+    id: "comp_2",
+    distributorId: "dist_1",
+    name: "Dabur Nepal Pvt. Ltd.",
+    shortCode: "DABUR",
+    category: "Fruit Juices, Health & Ayurvedic",
+    agencyCode: "AGY-DBR-4421",
+    contactPerson: "Bikash Rathi",
+    contactPhone: "9851088882",
+    logoUrl: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=200",
+    isAuthorized: true,
+    createdAt: "2026-01-16T00:00:00Z",
+  },
+  {
+    id: "comp_3",
+    distributorId: "dist_1",
+    name: "CG Foods Nepal (Wai Wai)",
+    shortCode: "CG_FOODS",
+    category: "Instant Noodles & Confectionery",
+    agencyCode: "AGY-CGF-1092",
+    contactPerson: "Mahesh Thapa",
+    contactPhone: "9851088883",
+    logoUrl: "https://images.unsplash.com/photo-1612927601601-6638404737ce?w=200",
+    isAuthorized: true,
+    createdAt: "2026-01-17T00:00:00Z",
+  },
+  {
+    id: "comp_4",
+    distributorId: "dist_1",
+    name: "Coca-Cola Beverages Nepal",
+    shortCode: "COCA_COLA",
+    category: "Carbonated Beverages & Packaged Water",
+    agencyCode: "AGY-COKE-9901",
+    contactPerson: "Prashant Giri",
+    contactPhone: "9851088884",
+    logoUrl: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=200",
+    isAuthorized: true,
+    createdAt: "2026-01-18T00:00:00Z",
+  },
+  {
+    id: "comp_5",
+    distributorId: "dist_1",
+    name: "Parle Products Nepal",
+    shortCode: "PARLE",
+    category: "Biscuits, Cookies & Confectionery",
+    agencyCode: "AGY-PRL-3341",
+    contactPerson: "Anil Kedia",
+    contactPhone: "9851088885",
+    logoUrl: "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=200",
+    isAuthorized: true,
+    createdAt: "2026-01-19T00:00:00Z",
+  },
+];
+
 export const INITIAL_PRODUCTS: MockProduct[] = [
   {
     id: "prod_1",
@@ -497,12 +608,13 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 30, pricePerCarton: 630 },
     ],
     hasFreeScheme: true,
-    freeSchemeMinQty: 10,
-    freeItemName: "Carton of Wai Wai (30 Pcs)",
+    freeSchemeType: "SAME_PRODUCT",
+    freeSchemeMinQty: 5,
+    freeItemName: "Carton of Wai Wai Quick Chicken (30 Pcs)",
     freeItemQty: 1,
     cashDiscountPercent: 2.0,
     promotionalGift: "Free CG Branded Apron & Metal Display Board on 15+ Cartons",
-    festivalTag: "Tihar & Chhath Wholesale Dhamaka",
+    festivalTag: "Buy 5 Get 1 Free Mega Deal",
     taxCategory: "TAXABLE_13",
     hsnCode: "1902.30.00",
     batchNumber: "CG-WW-2026/10A",
@@ -544,12 +656,15 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 20, pricePerCarton: 910 },
     ],
     hasFreeScheme: true,
-    freeSchemeMinQty: 5,
-    freeItemName: "Chilled 2.25L Coca-Cola Bottle",
+    freeSchemeType: "ANOTHER_PRODUCT",
+    freeSchemeMinQty: 1,
+    freeProductId: "prod_3",
+    freeItemSku: "DB-REAL-MF-12",
+    freeItemName: "Real Mixed Fruit Juice 1 Liter (Carton of 12)",
     freeItemQty: 1,
     cashDiscountPercent: 2.5,
     promotionalGift: "Free Coca-Cola Official Wall Clock on 10+ Cartons",
-    festivalTag: "Volume Retail Deal",
+    festivalTag: "Buy 1 Get Another Free Deal",
     taxCategory: "TAXABLE_13",
     hsnCode: "2202.10.00",
     batchNumber: "CC-LAL-2026/09",
@@ -590,12 +705,18 @@ export const INITIAL_PRODUCTS: MockProduct[] = [
       { minQty: 15, pricePerCarton: 2900 },
     ],
     hasFreeScheme: true,
-    freeSchemeMinQty: 6,
-    freeItemName: "Real 200ml Juice Pack (Tray of 6)",
+    freeSchemeType: "UNSELLING_ITEM",
+    freeSchemeMinQty: 2,
+    freeItemName: "Unsold Strawberry Glucose Biscuits (Carton of 24) [Clearance Stock]",
     freeItemQty: 1,
+    unsellingItemTag: "Slow-Moving Clearance Stock",
+    hasUnsellingBonus: true,
+    unsellingItemName: "Clearance Promo Apron & Display Board",
+    unsellingItemMinQty: 3,
+    unsellingItemQty: 1,
     cashDiscountPercent: 3.0,
     promotionalGift: "Free Dabur Countertop Dispenser on 12+ Cartons",
-    festivalTag: "Festive Juice Scheme",
+    festivalTag: "Clearance Dead-Stock Freebie Scheme",
     taxCategory: "TAXABLE_13",
     hsnCode: "2009.90.00",
     shelfLife: "12 Months from Mfg",
@@ -957,14 +1078,14 @@ export const INITIAL_ORDERS: MockOrder[] = [
     status: "PROCESSING",
     paymentStatus: "PENDING",
     paymentMethod: "BANK_TRANSFER",
-    subtotal: 10740,
+    subtotal: 16860,
     discountAmount: 300,
     deliveryFee: 0,
-    taxAmount: 1357.2,
-    totalAmount: 11797.2,
+    taxAmount: 2152.8,
+    totalAmount: 18712.8,
     commissionRate: 3.0,
-    commissionAmount: 313.2,
-    netDistributorEarnings: 10126.8,
+    commissionAmount: 505.8,
+    netDistributorEarnings: 16054.2,
     deliveryAddress: {
       recipientName: "Deepak Gurung",
       phone: "9846123456",
@@ -997,6 +1118,16 @@ export const INITIAL_ORDERS: MockOrder[] = [
         quantity: 1,
         unitPrice: 4100,
         totalPrice: 4100,
+      },
+      {
+        id: "item_7_juice",
+        productId: "prod_3",
+        productTitle: "Real Mixed Fruit Juice 1 Liter (Carton of 12)",
+        productSku: "DB-REAL-MF-12",
+        unitType: "CARTON",
+        quantity: 2,
+        unitPrice: 3155,
+        totalPrice: 6310,
       },
     ],
   },
